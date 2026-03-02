@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": ["iot:Connect"], "Resource": "*" },
+    {
+      "Effect": "Allow",
+      "Action": ["iot:Publish"],
+      "Resource": [
+        "arn:aws:iot:ap-southeast-5:575108948893:topic/laundry/${iot:Connection.Thing.ThingName}/status",
+        "arn:aws:iot:ap-southeast-5:575108948893:topic/laundry/${iot:Connection.Thing.ThingName}/events",
+        "arn:aws:iot:ap-southeast-5:575108948893:topic/$aws/things/${iot:Connection.Thing.ThingName}/shadow/update"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iot:Subscribe"],
+      "Resource": [
+        "arn:aws:iot:ap-southeast-5:575108948893:topicfilter/laundry/${iot:Connection.Thing.ThingName}/commands/#"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iot:Receive"],
+      "Resource": [
+        "arn:aws:iot:ap-southeast-5:575108948893:topic/laundry/${iot:Connection.Thing.ThingName}/commands/#",
+        "arn:aws:iot:ap-southeast-5:575108948893:topic/$aws/things/${iot:Connection.Thing.ThingName}/shadow/update/accepted",
+        "arn:aws:iot:ap-southeast-5:575108948893:topic/$aws/things/${iot:Connection.Thing.ThingName}/shadow/update/rejected"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iot:GetThingShadow", "iot:UpdateThingShadow"],
+      "Resource": "arn:aws:iot:ap-southeast-5:575108948893:thing/${iot:Connection.Thing.ThingName}"
+    }
+  ]
+}

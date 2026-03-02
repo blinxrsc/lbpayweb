@@ -1,0 +1,8 @@
+POST https://YOUR_API_ENDPOINT/control
+Content-Type: application/json
+
+{
+  "thingName": "esp32-001",
+  "command": "ON",
+  "pin": 2
+}

@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS IoT Shadow Update to SQS to Lambda
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: dev
+    Description: Environment name (dev, staging, prod)
+
+  QueueName:
+    Type: String
+    Default: ActivateMachineQueue
+    Description: Name of the SQS queue
+
+  DeadLetterQueueName:
+    Type: String
+    Default: ActivateMachineDLQ
+    Description: Name of the DLQ
+
+  LambdaFunctionName:
+    Type: String
+    Default: ActivatorLambda
+    Description: Name of the Lambda function
+
+  IoTEndpoint:
+    Type: String
+    Description: IoT Data ATS endpoint (e.g., https://a2ckaygsd64abd-ats.iot.ap-southeast-5.amazonaws.com)
+
+  EnableDLQ:
+    Type: String
+    AllowedValues:
+      - true
+      - false
+    Default: true
+    Description: Whether to create a Dead Letter Queue (DLQ)
+
+Conditions:
+  CreateDLQ: !Equals [!Ref EnableDLQ, "true"]
+
+Resources:
+  ActivateMachineDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${DeadLetterQueueName}-${EnvironmentName}"
+
+  ActivateMachineQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${QueueName}-${EnvironmentName}"
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !If [CreateDLQ, !GetAtt ActivateMachineDLQ.Arn, !Ref "AWS::NoValue"]
+        maxReceiveCount: 5
+
+  ActivatorLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: IoTShadowUpdatePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iot:UpdateThingShadow
+                Resource: arn:aws:iot:*:*:thing/*
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt ActivateMachineQueue.Arn
+
+  ActivatorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${LambdaFunctionName}-${EnvironmentName}"
+      Runtime: python3.9
+      Handler: index.handler
+      Role: !GetAtt ActivatorLambdaRole.Arn
+      Environment:
+        Variables:
+          IOT_DATA_ENDPOINT: !Ref IoTEndpoint
+      Code:
+        ZipFile: |
+          import json, boto3, os
+          iot = boto3.client('iot-data', endpoint_url=os.environ['IOT_DATA_ENDPOINT'])
+
+          def handler(event, context):
+              for record in event['Records']:
+                  body = json.loads(record['body'])
+                  serial = body['serial']
+                  desired = {
+                      'activate': {
+                          'order_id': body['order_id'],
+                          'duration_sec': body['duration_sec'],
+                          'idempotency_key': body['idempotency_key']
+                      }
+                  }
+                  iot.update_thing_shadow(
+                      thingName=serial,
+                      payload=json.dumps({'state': {'desired': desired}}).encode('utf-8')
+                  )
+
+  ActivatorLambdaSQSTrigger:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      EventSourceArn: !GetAtt ActivateMachineQueue.Arn
+      FunctionName: !Ref ActivatorLambda
+
+Outputs:
+  QueueArn:
+    Description: ARN of the ActivateMachineQueue
+    Value: !GetAtt ActivateMachineQueue.Arn
+
+  DeadLetterQueueArn:
+    Condition: CreateDLQ
+    Description: ARN of the Dead Letter Queue
+    Value: !GetAtt ActivateMachineDLQ.Arn
+
+  LambdaName:
+    Description: Name of the Activator Lambda function
+    Value: !Ref ActivatorLambda
+
+  LambdaRoleArn:
+    Description: ARN of the IAM Role attached to Lambda
+    Value: !GetAtt ActivatorLambdaRole.Arn
+
+  IoTEndpointUsed:
+    Description: IoT Data ATS endpoint provided
+    Value: !Ref IoTEndpoint
+

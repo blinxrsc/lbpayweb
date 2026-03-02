@@ -1,0 +1,69 @@
+services:
+  # The Laravel App
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lbpayweb_app
+    restart: always
+    # REMOVED port 80:80 here so the Proxy can use it
+    expose:
+      - "80"
+    # user: "1000:1000" # Add this to match host user
+    volumes:
+      - .:/var/www/html/lbpayweb
+    environment:
+      - REDIS_HOST=redis
+      - MQTT_HOST=172.31.38.200
+    depends_on:
+      - redis
+  # SSL Proxy Manager
+  nginx-proxy:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: lbpayweb_proxy
+    restart: always
+    ports:
+      - '80:80'   # Standard Web Port
+      - '443:443' # SSL Port
+      - '81:81'   # Admin Dashboard Port
+    volumes:
+      - ./nginx_data:/data
+      - ./nginx_letsencrypt:/etc/letsencrypt
+  # The Queue Worker (Horizon)
+  worker:
+    build: .
+    container_name: lbpayweb_worker
+    restart: always
+    stop_signal: SIGTERM
+    stop_grace_period: 30s # to finish active jobs
+    command: php artisan horizon
+    # user: "1000:1000" # Add this to match host user
+    volumes:
+      - .:/var/www/html/lbpayweb
+    depends_on:
+      - app
+  # Redis (local to this server)
+  redis:
+    image: 'redis:alpine'
+    container_name: lbpayweb_redis
+    restart: always
+    ports:
+      - 6379:6379
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+  # phpmyadmin
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: lbpayweb_phpmyadmin
+    restart: always
+    # REMOVED port 80:80 here so the Proxy can use it
+    expose:
+      - "80"
+    environment:
+      - PMA_HOST=lbpaylinkerdb.c9aq4c0qcqf3.ap-southeast-5.rds.amazonaws.com
+      - PMA_PORT=3306
+      - UPLOAD_LIMIT=64M
+
+
