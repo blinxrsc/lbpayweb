@@ -4,7 +4,26 @@
             {{ __('Outlet Statistics Dashboard') }}
         </h2>
     </x-slot>
-
+    <!-- system health -->
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <div class="bg-white p-4 rounded-lg shadow mb-6">
+                <h2><strong>System Integrator Status</strong></h2>
+                <div class="flex justify-end">
+                    <button id="refreshBtn" class="btn btn-primary mb-4 inline-block px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700">Refresh Status</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    @foreach($services as $name => $val)
+                    <div class="bg-white p-5 rounded-lg shadow border-l-4 border-yellow-500">
+                        <p class="text-xs text-gray-500 uppercase font-bold">{{ strtoupper($name) }}</p>
+                            <x-status-badge :status="$val" />
+                        </p>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
@@ -219,5 +238,40 @@
             }
         });
     </script>
-    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById('refreshBtn'); // Ensure this matches your HTML ID!
+        
+        if (btn) {
+            btn.addEventListener('click', function() {
+                this.disabled = true;
+                this.innerText = 'Checking...';
+                
+                fetch("{{ route('health.sync') }}", {
+                    method: 'POST',
+                    headers: { 
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest' // Tells Laravel this is an AJAX call
+                    },
+                    body: JSON.stringify({}) // Some servers require a body for POST
+                })
+                .then(response => {
+                    if (response.status === 405) {
+                        alert("Server still thinks this is a GET request. Check your Nginx SSL config.");
+                    }
+                    return response.json();
+                })
+                .then(data => location.reload())
+                .catch(err => {
+                    console.error(err);
+                    alert('Server Error (500). Check Laravel logs inside Docker.');
+                    this.disabled = false;
+                    this.innerText = 'Refresh Status';
+                });
+            });
+        }
+    });
+    </script>
 </x-app-layout>

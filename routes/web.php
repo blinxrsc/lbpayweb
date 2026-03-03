@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\EwalletTransactionAdminController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Admin\TermsOfServiceController;
 use App\Http\Controllers\MerchantConfigController;
+use App\Http\Controllers\HealthController;
 
 Route::middleware('guest')->group(function () {
     Route::get('/device/{serial}', [DeviceController::class, 'scan'])->name('device.scan');
@@ -154,6 +155,10 @@ Route::middleware(['auth:web'])->group(function () {
     Route::get('/merchant/setting', [MerchantConfigController::class, 'edit'])->name('admin.merchant.setting');
     Route::patch('/merchant/setting', [MerchantConfigController::class, 'update'])->name('admin.merchant.update');
     Route::get('/merchant/invoice', [MerchantConfigController::class, 'showReceipt'])->name('admin.merchant.invoice');
+
+    //system health
+    Route::post('/health/sync', [HealthController::class, 'sync'])->name('health.sync');
+    Route::get('/dashboard/health', [HealthController::class, 'index'])->name('health.index');
     
     Route::middleware(['auth', 'can:ewallet.manage'])->prefix('admin')->group(function () {
         // Ewallet adjustments 
@@ -198,6 +203,8 @@ Route::middleware(['auth:web'])->group(function () {
         Route::post('/devices/import', [DeviceController::class, 'confirmImport'])->name('devices.import.confirm');
         Route::put('/devices/{log}/rollback', [DeviceController::class, 'rollback'])->name('devices.rollback');
         Route::post('/devices/faulty', [DeviceController::class, 'markFaulty'])->name('devices.markFaulty');
+        Route::post('/devices/repair', [DeviceController::class, 'markRepair'])->name('devices.markRepair');
+        Route::post('/devices/completed', [DeviceController::class, 'repairCompleted'])->name('devices.repairCompleted');
 
         // Device outlets
         Route::resource('/device_outlets', DeviceOutletController::class);

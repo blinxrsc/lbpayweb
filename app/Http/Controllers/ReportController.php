@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\MemberReportService;
+use App\Services\MaintenanceReportService;
 use App\Services\DeviceReportService; // Add this
 use Illuminate\Http\Request;
 
@@ -37,23 +38,16 @@ class ReportController extends Controller
     }
 
     // New Device Maintenance Method
-    public function deviceMaintenance(Request $request)
+    public function deviceMaintenance(Request $request, MaintenanceReportService $service)
     {
-        // Default to current month and year if not provided in the request
-        $month = $request->input('month', now()->month);
-        $year = $request->input('year', now()->year);
-        
-        $data = $this->deviceService->maintenanceReport(
-            $request->month, 
-            $request->year
+        // Get stats from service
+        $stats = $service->getMaintenanceStats(
+            $request->query('month'), 
+            $request->query('year')
         );
 
-        // If it's an AJAX call, return JSON, otherwise return the view
-        if ($request->wantsJson()) {
-            return response()->json($data);
-        }
-
-        return view('reports.maintenance', ['stats' => $data]);
+        // Pass $stats to the view
+        return view('reports.maintenance', compact('stats'));
     }
 
     public function exportPdf(Request $request)

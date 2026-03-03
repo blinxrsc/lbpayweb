@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\HealthStatus;
 use App\Models\Outlet;
 use App\Models\DeviceOutlet;
 use App\Models\TypeOutlet;
@@ -16,6 +17,8 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $status = HealthStatus::find(1);
+        $services = $status ? json_decode($status->data, true) : [];
         // Pass roles and permissions to the view
         $user = auth()->user();
         /**
@@ -95,7 +98,10 @@ class DashboardController extends Controller
                     ->limit(5)
                     ->get(),
             'start' => $start, 
-            'end' => $end, ]));
+            'end' => $end,
+            'status' => $status, 
+            'services' => $services 
+        ]));
     }
 
     public function exportPdf(Request $request)

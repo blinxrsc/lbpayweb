@@ -34,7 +34,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <!-- Edit Button -->
                                             <a href="{{ route('suppliers.edit', $supplier) }}" 
-                                                class="inline-flex items-center px-2 py-1 text-indigo-600 hover:text-indigo-800"
+                                                class="inline-flex items-center px-2 py-1 text-indigo-500 hover:text-indigo-800"
                                                 title="Edit"
                                             >
                                                 <x-heroicon-o-pencil-square class="w-5 h-5"/></a>

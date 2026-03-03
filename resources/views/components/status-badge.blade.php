@@ -19,9 +19,13 @@
         'alacart' => 'bg-blue-100 text-blue-800',
         'assigned' => 'bg-green-600 text-green-800',
         'unassigned' => 'bg-yellow-100 text-yellow-800',
+        'faulty' => 'bg-red-100 text-red-700',
+        'repair' => 'bg-blue-100 text-blue-700',
         'Washer'    =>  'bg-blue-600 text-white',
         'Dryer' => 'bg-amber-600 text-white',
         'Combo' => 'bg-indigo-600 text-white',
+        'OK' => 'bg-green-600 text-green-800',
+        'Fail' => 'bg-red-100 text-red-700',
     ];
 
     $colorClass = $colors[$name] ?? 'bg-gray-500 text-white';

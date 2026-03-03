@@ -90,94 +90,152 @@
                     </table>
                 </div>
             </div>
+            <a href="{{ route('devices.index') }}" class="text-gray-600 hover:underline">← Back to List</a>
+            @can('devices.maintenance')
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- modal report faulty -->
+                <div class="bg-white p-6 shadow sm:rounded-lg">
+                    <div x-data="{ open: false }">
+                        <button @click="open = true" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded shadow">
+                            Report Faulty
+                        </button>
 
-            <div class="flex justify-between">
-                <a href="{{ route('devices.index') }}" class="text-gray-600 hover:underline">← Back to List</a>
-                
-                <!-- modal -->
-                <div x-data="{ open: false }">
-                <button @click="open = true" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded shadow">
-                    Report Faulty / Move to Repair
-                </button>
+                        <div x-show="open" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" x-cloak>
+                            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                                <div x-show="open" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
 
-                <div x-show="open" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true" x-cloak>
-                    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div x-show="open" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-
-                        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                            <form action="{{ route('devices.markFaulty', $device->serial_number) }}" method="POST">
-                                @csrf
-                                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                    <div class="sm:flex sm:items-start">
-                                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                            </svg>
-                                        </div>
-                                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Report Device Fault</h3>
-                                            <div class="mt-2">
-                                                <h3>Device: {{ $device->serial_number }}</h3>
-                                                <p class="text-sm text-gray-500 mb-4">
-                                                    Please describe the issue. Marking this device as faulty will automatically remove it from its current outlet.
-                                                </p>
-                                                <textarea name="notes" rows="3" required
-                                                    class="w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                                                    placeholder="E.g. LED screen cracked, not receiving coins..."></textarea>
+                                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                                    <form action="{{ route('devices.markFaulty') }}" method="POST">
+                                        @csrf
+                                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                            <div class="sm:flex sm:items-start">
+                                                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                                                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                    </svg>
+                                                </div>
+                                                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Report Device Fault</h3>
+                                                    <div class="mt-2">
+                                                        @if ($errors->any())
+                                                            <div class="text-red-600 text-sm mb-2">
+                                                                @foreach ($errors->all() as $error)
+                                                                    <p>{{ $error }}</p>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                        <h3>Device: {{ $device->serial_number }}</h3>
+                                                        <p class="text-sm text-gray-500 mb-4">
+                                                            Please describe the issue. Marking this device as faulty will automatically remove it from its current outlet.
+                                                        </p>
+                                                        <input type="hidden" id="serial_number" name="serial_number" value="{{ $device->serial_number }}">
+                                                        <input type="hidden" id="outlet_id" name="outlet_id" value="{{ $device->outlet_id }}">
+                                                        <input type="hidden" id="status" name="status" value="{{ $device->status }}">
+                                                        <textarea name="notes" rows="3" required
+                                                            class="w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                                            placeholder="E.g. LED screen cracked, not receiving coins..."></textarea>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm">
+                                                Confirm Faulty Status
+                                            </button>
+                                            <button type="button" @click="open = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
-                                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm">
-                                        Confirm Faulty Status
-                                    </button>
-                                    <button type="button" @click="open = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                                        Cancel
-                                    </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- modal proceed repair -->
+                <div class="bg-white p-6 shadow sm:rounded-lg">
+                    <div x-data="{ repairOpen: false }">
+                        <button @click="repairOpen = true" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
+                            Proceed to Repair
+                        </button>
+
+                        <div x-show="repairOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+                            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+                                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                                    <form action="{{ route('devices.markRepair', $device->serial_number) }}" method="POST">
+                                        @csrf
+                                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Proceed to Repair</h3>
+                                            <div class="mt-2">
+                                                <input type="hidden" id="serial_number" name="serial_number" value="{{ $device->serial_number }}">
+                                                <input type="hidden" id="outlet_id" name="outlet_id" value="{{ $device->outlet_id }}">
+                                                <input type="hidden" id="status" name="status" value="{{ $device->status }}">
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Technician's Repair Notes</label>
+                                                <textarea name="notes" rows="3" required
+                                                    class="w-full border-gray-300 focus:border-green-500 focus:ring-green-500 rounded-md shadow-sm"
+                                                    placeholder="Describe what was fixed (e.g., Replaced faulty capacitor on power board)"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">
+                                                Confirm to Repair
+                                            </button>
+                                            <button type="button" @click="repairOpen = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
-                            </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- modal repair Completed -->
+                <div class="bg-white p-6 shadow sm:rounded-lg">
+                    <div x-data="{ completeOpen: false }">
+                        <button @click="completeOpen = true" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow">
+                            Mark Repair as Completed
+                        </button>
+
+                        <div x-show="completeOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+                            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+                                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                                    <form action="{{ route('devices.repairCompleted', $device->serial_number) }}" method="POST">
+                                        @csrf
+                                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Finalize Repair</h3>
+                                            <div class="mt-2">
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Technician's Repair Notes</label>
+                                                <input type="hidden" id="serial_number" name="serial_number" value="{{ $device->serial_number }}">
+                                                <input type="hidden" id="outlet_id" name="outlet_id" value="{{ $device->outlet_id }}">
+                                                <input type="hidden" id="status" name="status" value="{{ $device->status }}">
+                                                <textarea name="notes" rows="3" required
+                                                    class="w-full border-gray-300 focus:border-green-500 focus:ring-green-500 rounded-md shadow-sm"
+                                                    placeholder="Describe what was fixed (e.g., Replaced faulty capacitor on power board)"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">
+                                                Complete & Return to Stock
+                                            </button>
+                                            <button type="button" @click="completeOpen = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+            @endcan
         </div>
     </div>
 </div>
-@if($device->status == 'Faulty')
-    <div x-data="{ repairOpen: false }">
-        <button @click="repairOpen = true" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow">
-            Mark Repair as Completed
-        </button>
 
-        <div x-show="repairOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
-            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-
-                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                    <form action="{{ route('devices.repairCompleted', $device->serial_number) }}" method="POST">
-                        @csrf
-                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Finalize Repair</h3>
-                            <div class="mt-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Technician's Repair Notes</label>
-                                <textarea name="repair_notes" rows="3" required
-                                    class="w-full border-gray-300 focus:border-green-500 focus:ring-green-500 rounded-md shadow-sm"
-                                    placeholder="Describe what was fixed (e.g., Replaced faulty capacitor on power board)"></textarea>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">
-                                Complete & Return to Stock
-                            </button>
-                            <button type="button" @click="repairOpen = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                                Cancel
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-@endif
 </x-app-layout>

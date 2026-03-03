@@ -358,67 +358,120 @@ class DeviceController extends Controller
         return view('customer.payment.qr-confirm', compact('device'));
     }
 
-    public function markFaulty(Request $request, Device $device)
+    public function markFaulty(Request $request)
     {
+        //dd($request->all());
+        // 1. Check if the device is already faulty to prevent duplicates
+        if ($request->status === 'faulty') {
+            return back()->with('error', 'This device is already marked as faulty.');
+        }
+
         $request->validate([
-            'serial_number' => 'required|string|max:255|unique:devices,serial_number,' . $device->serial_number,
             'notes' => 'required|string|max:500',
         ]);
 
-        DB::transaction(function () use ($device, $request) {
-            $oldStatus = $device->status;
-            $currentOutlet = $device->deviceOutlets->outlet_id ?? null;
-
+        DB::transaction(function () use ($request) {         
             // 1. If device is currently assigned, remove it from the mapping table
-            DeviceOutlet::where('device_serial_number', $device->serial_number)->delete();
+            DeviceOutlet::where('device_serial_number', $request->serial_number)->delete();
 
             // 2. Update Device status
-            $device->update([
-                'status' => 'faulty', // or 'In Repair'
-                'outlet_id' => null
-            ]);
+            Device::where('serial_number', $request->serial_number)
+                ->update([
+                    'status' => 'faulty',
+                    'outlet_id' => null
+                ]);
+
+            $outletId = $request->input('outlet_id');
+            $outletId = ($outletId === '') ? null : $outletId;
 
             // 3. Create the Movement Log with User ID
             DeviceMovementLog::create([
-                'device_serial_number' => $device->serial_number,
+                'device_serial_number' => $request->serial_number,
                 'user_id' => auth()->id(), // Track the performer
-                'outlet_id' => $currentOutlet,
+                'outlet_id' => $outletId,
                 'action' => 'Marked Faulty',
-                'from_status' => $oldStatus,
+                'from_status' => $request->status,
                 'to_status' => 'faulty',
-                'notes' => $request->notes ?? 'Device reported faulty by user.',
+                'notes' => $request->notes ?? 'Device reported faulty by user.'
             ]);
         });
 
-        return back()->with('success', 'Device marked as faulty and unassigned from outlet.');
+        return back()->with('success', 'Device ' . $request->serial_number . ' marked as faulty and unassigned from outlet.');
     }
 
-    public function repairCompleted(Request $request, Device $device)
+    public function markRepair(Request $request)
     {
+        //dd($request->all());
+        // 1. Check if the device is already repair process
+        if ($request->status === 'repair') {
+            return back()->with('error', 'This device is already in progress for repair.');
+        }
+        // 2. Check if the device is already faulty to 
+        if ($request->status !== 'faulty') {
+            return back()->with('error', 'This device is NOT marked as faulty.');
+        }
         $request->validate([
-            'repair_notes' => 'required|string|max:500',
+            'notes' => 'required|string|max:500',
         ]);
 
-        DB::transaction(function () use ($device, $request) {
-            $oldStatus = $device->status;
+        DB::transaction(function () use ($request) {
+            $oldStatus = $request->status;
 
-            // 1. Update Device status to Unassigned (Ready for use)
-            $device->update([
-                'status' => 'unassigned',
-                'outlet_id' => null
-            ]);
+            // 3. Update Device status to Unassigned (Ready for use)
+            Device::where('serial_number', $request->serial_number)
+                ->update([
+                    'status' => 'repair',
+                    'outlet_id' => null
+                ]);
 
-            // 2. Create the Movement Log
+            // 4. Create the Movement Log
             DeviceMovementLog::create([
-                'device_serial_number' => $device->serial_number,
+                'device_serial_number' => $request->serial_number,
                 'user_id' => auth()->id(),
+                'action' => 'Repair In-Progress',
+                'from_status' => $oldStatus,
+                'to_status' => 'repair',
+                'notes' => 'Repair Details: ' . $request->notes,
+            ]);
+        });
+
+        return back()->with('success', 'Device ' . $request->serial_number . ' sent to repair.');
+    }
+
+    public function repairCompleted(Request $request)
+    {
+        //dd($request->all());
+        // 1. Ensure the device is actually repair before "repairing" it
+        if ($request->status !== 'repair') {
+            return back()->with('error', 'This device is not marked as repair status.');
+        }
+
+        $request->validate([
+            'notes' => 'required|string|max:500',
+        ]);
+
+        DB::transaction(function () use ($request) {
+            $oldStatus = $request->status;
+
+            // 2. Update device to available status
+            Device::where('serial_number', $request->serial_number)
+                ->update([
+                    'status' => 'unassigned',
+                    'outlet_id' => null
+                ]);
+
+            // 3. Create the Repair Completion Log
+            DeviceMovementLog::create([
+                'device_serial_number' => $request->serial_number,
+                'user_id' => auth()->id(),
+                'outlet_id' => null, // It's in stock, not at an outlet
                 'action' => 'Repair Completed',
                 'from_status' => $oldStatus,
                 'to_status' => 'unassigned',
-                'notes' => 'Repair Details: ' . $request->repair_notes,
+                'notes' => $request->notes,
             ]);
         });
 
-        return back()->with('success', 'Device repaired and moved to Unassigned stock.');
+        return back()->with('success', "Device ' . $request->serial_number . ' repaired and moved to stock.");
     }
 }

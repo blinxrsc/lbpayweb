@@ -34,5 +34,10 @@ class Device extends Model
     public function auditLogs() {
         return $this->hasMany(DeviceAuditLog::class);
     }
+    public function movementLogs()
+    {
+        // Use the foreign key column name in your table if it's not 'device_id'
+        return $this->hasMany(DeviceMovementLog::class, 'device_serial_number', 'serial_number');
+    }
 }
 
