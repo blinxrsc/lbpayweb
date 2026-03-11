@@ -71,7 +71,7 @@ class DeviceOutletController extends Controller
             'machine_name'         => 'required|string|max:255',
             'machine_type'         => 'required|in:Washer,Dryer,Combo,Token Changer,Vending',
             'device_serial_number' => 'required|exists:devices,serial_number',
-            'status'               => 'required|in:Online,Offline',
+            'status'               => 'required|in:online,offline',
             'availability'         => 'boolean',
         ]);
 

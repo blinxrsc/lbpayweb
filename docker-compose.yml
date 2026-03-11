@@ -40,8 +40,11 @@ services:
     # user: "1000:1000" # Add this to match host user
     volumes:
       - .:/var/www/html/lbpayweb
+    environment:
+      - REDIS_HOST=redis
     depends_on:
       - app
+      - redis
   # Redis (local to this server)
   redis:
     image: 'redis:alpine'
@@ -53,6 +56,31 @@ services:
       resources:
         limits:
           memory: 1G
+  # Mqtt bridge (listener)
+  mqtt-bridge:
+    build: .
+    container_name: lbpayweb_mqtt_bridge
+    restart: always
+    command: php artisan app:mqtt-bridge
+    volumes:
+      - .:/var/www/html/lbpayweb
+    environment:
+      - REDIS_HOST=redis
+      - MQTT_HOST=172.31.38.200
+    depends_on:
+      - redis
+      - app
+  # scheduler
+  scheduler:
+    build: .
+    container_name: lbpayweb_scheduler
+    restart: always
+    command: php artisan schedule:work
+    volumes:
+      - .:/var/www/html/lbpayweb
+    depends_on:
+      - app
+      - redis
   # phpmyadmin
   phpmyadmin:
     image: phpmyadmin:latest

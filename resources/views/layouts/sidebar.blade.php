@@ -252,12 +252,12 @@
         @endcan
         <!-- Setting -->
         @can('setting.manage')
-        <li x-data="{ open: {{ request()->routeIs('payment_gateway.*','mailserver.*','admin.logo.*','backup.*', 'admin.terms.*', 'admin.merchant.setting') ? 'true' : 'false' }} }">
+        <li x-data="{ open: {{ request()->routeIs('payment_gateway.*','mailserver.*','admin.logo.*','backup.*', 'admin.terms.*', 'admin.merchant.setting', 'firmware.upload') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
                 {{ request()->routeIs('payment_gateway.*') ? 'text-blue-700' : 'text-gray-600' }}">
                 
-                <x-heroicon-m-wrench-screwdriver class="w-5 h-5 mr-3 {{ request()->routeIs('payment_gateway.*','mailserver.*','admin.logo.*','backup.*', 'admin.terms.*', 'admin.merchant.setting') ? 'text-blue-600' : 'text-gray-400' }}" />
+                <x-heroicon-m-wrench-screwdriver class="w-5 h-5 mr-3 {{ request()->routeIs('payment_gateway.*','mailserver.*','admin.logo.*','backup.*', 'admin.terms.*', 'admin.merchant.setting','firmware.upload') ? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Setting</span>
                 
                 <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -304,6 +304,13 @@
                 <li>
                     <x-nav-link :href="route('admin.merchant.setting')" :active="request()->routeIs('admin.merchant.setting')" class="{{ request()->routeIs('admin.merchant.setting') ? 'text-blue-600' : 'text-gray-400' }}">
                         Merchant Profile
+                    </x-nav-link>
+                </li>
+                @endcan
+                @can('devices.ota')
+                <li>
+                    <x-nav-link :href="route('firmware.upload')" :active="request()->routeIs('firmware.upload')" class="{{ request()->routeIs('firmware.upload') ? 'text-blue-600' : 'text-gray-400' }}">
+                        OTA Upgrade
                     </x-nav-link>
                 </li>
                 @endcan

@@ -39,5 +39,9 @@ return [
         'api_key' => env('IOT_API_KEY', 'default-key'),
     ],
 
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
+    ],
 
 ];

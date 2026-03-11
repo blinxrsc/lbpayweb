@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Redis;
 
 class DeviceOutlet extends Model
 {
@@ -35,4 +36,24 @@ class DeviceOutlet extends Model
     {
         return $this->hasMany(DeviceTransaction::class);
     }
+
+    public function getIsOnlineAttribute()
+    {
+        // Check Redis first. If the key exists, the machine is online.
+        // This avoids hitting the DB disk.
+        return Redis::exists("machine:status:{$this->device_serial_number}");
+    }
+
+    public function getLastSeenAtAttribute()
+    {
+        $timestamp = Redis::hget('machine_heartbeats', $this->device_serial_number);
+        return $timestamp ? \Carbon\Carbon::createFromTimestamp($timestamp) : $this->attributes['last_seen_at'];
+    }
+
+    public function getLastRebootAttribute()
+    {
+        $cached = Redis::hget('machine_last_reboot', $this->device_serial_number);
+        return $cached ? \Carbon\Carbon::createFromTimestamp($cached) : $this->attributes['last_reboot_at'];
+    }
+
 }

@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Outlet Statistics Dashboard') }}
+            {{ __('Summary of Activity') }}
         </h2>
     </x-slot>
     <!-- system health -->
@@ -18,11 +18,32 @@
                         <p class="text-xs text-gray-500 uppercase font-bold">{{ strtoupper($name) }}</p>
                             <x-status-badge :status="$val" />
                         </p>
+                        @if(strtoupper($name) === 'RDS')
+                            <a href="https://pma.lbpaylinker.com" class="nav-link text-sm" target="_blank">
+                                <i class="fas fa-tasks"></i>
+                                <p>Go to PhpMyAdmin</p>
+                            </a>
+                        @endif
+                        @if(strtoupper($name) === 'MQTT')
+                            <a href="http://56.68.70.106:18083" class="nav-link text-sm" target="_blank">
+                                <i class="fas fa-tasks"></i>
+                                <p>Go to MQTT Dashboard</p>
+                            </a>
+                        @endif
+                        @if(strtoupper($name) === 'HORIZON')
+                            <a href="{{ url('/horizon') }}" class="nav-link text-sm" target="_blank">
+                                <i class="fas fa-tasks"></i>
+                                <p>Go to Horizon Dashboard</p>
+                            </a>
+                        @endif
                     </div>
                     @endforeach
                 </div>
             </div>
         </div>
+    </div>
+    <div>
+        @livewire('machine-status-table')
     </div>
     <div class="py-6">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">

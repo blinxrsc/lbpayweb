@@ -79,5 +79,7 @@
                 </div>
             </form>
         </div>
+        Ver1.2
     </div>
+    
 </x-guest-layout>

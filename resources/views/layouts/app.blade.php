@@ -28,7 +28,6 @@
         .legal-content h3 { font-size: 1.2rem; font-weight: bold; margin-top: 0.8rem; }
         .legal-content p { margin-bottom: 1rem; }
         </style>
-        
     </head>
     <body class="font-sans antialiased">
         <div class="flex min-h-screen bg-gray-100">
@@ -47,7 +46,7 @@
                     <link rel="icon" type="image/png" href="{{ $favicon ? asset('storage/'.$favicon->value) : asset('images/default-favicon.png') }}">
                     {{-- Branding Name --}}
                     <span class="text-l font-bold text-gray-800">
-                        LBPayLinker
+                        LBPayLinker ver1.2
                     </span>
                 </div>
                 <!-- Admin User on Top -->

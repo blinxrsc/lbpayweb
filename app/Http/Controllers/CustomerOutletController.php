@@ -92,7 +92,8 @@ class CustomerOutletController extends Controller
 
         if ($nearestOutlet) {
             session(['outlet_id' => $nearestOutlet->id]);
-            return redirect()->route('customer.devices.index');
+            //return redirect()->route('customer.devices.index');
+            return view('customer.devices.index');
         }
 
         return redirect()->route('customer.outlet.select')

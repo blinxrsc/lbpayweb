@@ -39,7 +39,8 @@
             </div>
             <div class="text-center">
                 <a href="{{ route('ewallet.topuplist') }}">
-                <x-primary-button>Add Top Up</x-primary-button>
+                    <x-primary-button>Add Top Up</x-primary-button>
+                </a>
             </div>
         </div>
     </div>

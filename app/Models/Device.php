@@ -18,7 +18,10 @@ class Device extends Model
         'dryer_low_price','dryer_med_price','dryer_hi_price',
         'pulse_price','pulse_add_min','pulse_width','pulse_delay','coin_signal_width',
         'status',
-        'outlet_id'
+        'outlet_id',
+        'ota_status',
+        'ota_error',
+        'last_payload',
     ];
 
     public function supplier()

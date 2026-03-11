@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Firmware;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OutletController;
@@ -176,8 +178,6 @@ Route::middleware(['auth:web'])->group(function () {
         Route::get('/packages/create', [TopupPackageController::class, 'create'])->name('admin.packages.create');
     });
     
-
-
     /*
     |--------------------------------------------------------------------------
     | Admin Routes (web guard + role:admin)
@@ -258,6 +258,15 @@ Route::middleware(['auth:web'])->group(function () {
         //logs
         Route::get('mailserver/logs', [MailServerController::class, 'logs'])->name('mailserver.logs');
         Route::get('admin/logs', [UserController::class, 'userLogs'])->name('admin.user.logs');
+        //firmware
+        Route::get('/download/firmware/{id}', function ($id) {
+            $firmware = Firmware::findOrFail($id);
+            // Add logic here: if request is not from ESP32 IP, block it (optional)
+            return Storage::download($firmware->file_path);
+        })->name('firmware.download');
+        Route::get('/admin/firmware', function () {
+            return view('admin.firmware.index');
+        })->name('firmware.upload');
     });
 });
 

@@ -29,4 +29,5 @@
             <a href="{{ route('login') }}">Admin Login</a>
         </p>
     </div>
+    Ver1.2
 </x-guest-layout>
