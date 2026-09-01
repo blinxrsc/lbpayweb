@@ -21,6 +21,15 @@ class DeviceOutletController extends Controller
     {
         $query = DeviceOutlet::with(['outlet.brand','device']);
 
+        // Scope to outlets this user is allowed to see (null = unrestricted/admin).
+        // Note: accessibleOutletIds() can return an empty array for a user with
+        // no assignments yet, which must still filter to "show nothing" — so
+        // check against null explicitly rather than truthiness.
+        $ids = $request->user()->accessibleOutletIds();
+        if ($ids !== null) {
+            $query->whereIn('outlet_id', $ids);
+        }
+
         if ($request->filled('brand_id')) {
             $query->whereHas('outlet', function($q) use ($request) {
                 $q->where('brand_id', $request->brand_id);
@@ -53,7 +62,7 @@ class DeviceOutletController extends Controller
      */
     public function create()
     {
-        $outlets = Outlet::all();
+        $outlets = Outlet::accessibleBy(auth()->user())->get();
         //$devices = Device::all();
         // Filter only devices that are unassigned
         $devices = Device::where('status', 'unassigned')->get();
@@ -74,6 +83,8 @@ class DeviceOutletController extends Controller
             'status'               => 'required|in:online,offline',
             'availability'         => 'boolean',
         ]);
+
+        abort_unless($request->user()->canAccessOutlet($validated['outlet_id']), 403, 'You do not have access to this outlet.');
 
         // Use a transaction to ensure both updates succeed or both fail
         DB::transaction(function () use ($validated) {
@@ -108,7 +119,9 @@ class DeviceOutletController extends Controller
      */
     public function show(DeviceOutlet $deviceOutlet)
     {
-        $outlets = Outlet::all();
+        abort_unless(auth()->user()->canAccessOutlet($deviceOutlet->outlet_id), 403);
+
+        $outlets = Outlet::accessibleBy(auth()->user())->get();
         $devices = Device::all();
         return view('device_outlets.show', compact('deviceOutlet','outlets','devices'));
     }
@@ -118,7 +131,9 @@ class DeviceOutletController extends Controller
      */
     public function edit(DeviceOutlet $deviceOutlet)
     {
-        $outlets = Outlet::all();
+        abort_unless(auth()->user()->canAccessOutlet($deviceOutlet->outlet_id), 403);
+
+        $outlets = Outlet::accessibleBy(auth()->user())->get();
         // Get unassigned devices OR the device currently assigned to this record
         $devices = Device::where('status', 'unassigned')
             ->orWhere('serial_number', $deviceOutlet->device_serial_number)
@@ -140,6 +155,9 @@ class DeviceOutletController extends Controller
             'status'               => 'required|in:Online,Offline',
             'availability'         => 'boolean',
         ]);
+
+        abort_unless($request->user()->canAccessOutlet($deviceOutlet->outlet_id), 403);
+        abort_unless($request->user()->canAccessOutlet($validated['outlet_id']), 403, 'You do not have access to this outlet.');
 
         DB::transaction(function () use ($validated, $deviceOutlet) 
         {
@@ -185,6 +203,8 @@ class DeviceOutletController extends Controller
      */
     public function destroy(DeviceOutlet $deviceOutlet)
     {
+        abort_unless(auth()->user()->canAccessOutlet($deviceOutlet->outlet_id), 403);
+
         DB::transaction(function () use ($deviceOutlet) 
         {
             // Capture the serial number before deleting the record

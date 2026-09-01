@@ -11,21 +11,25 @@ class RoleMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Usage: ->middleware('role:admin') or ->middleware('role:admin|outlet_manager')
+     *
+     * NOTE: the previous version of this middleware checked the role but
+     * called $next($request) unconditionally in every branch, so it never
+     * actually blocked anyone. Fixed to abort(403) when the user doesn't
+     * hold one of the given roles.
      */
-    /** 29-12-25
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, string $roles): Response
     {
-        return $next($request);
-    }
-    */
-    public function handle($request, Closure $next, $role)
-    {
-        if (auth()->check() && auth()->user()->role === $role) {
-            return $next($request);
+        if (!auth()->check()) {
+            abort(403, 'Unauthorized.');
         }
-        //return redirect('/unauthorized');
+
+        $roles = explode('|', $roles);
+
+        if (!auth()->user()->hasAnyRole($roles)) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
         return $next($request);
     }
-    //end
 }

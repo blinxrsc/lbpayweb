@@ -1,149 +1,132 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Edit Outlet') }}
-        </h2>
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Add New Outlet') }}
+            </h2>
+            <a href="{{ route('outlets.index') }}" class="text-sm text-gray-500 hover:text-gray-700 transition">
+                &larr; Back to List
+            </a>
+        </div>
     </x-slot>
 
-    <div class="py-6">
+    <div class="py-10">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <form method="POST" action="{{ route('outlets.update', $outlet) }}">
-                    @csrf
-                    @method('PUT')
+            <form method="POST" action="{{ route('outlets.update', $outlet) }}" class="space-y-6">
+                @csrf
+                @method('PUT')
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white shadow-sm border border-gray-100 sm:rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">General Information</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2">
+                                    <x-input-label for="outlet_name" :value="__('Outlet Name')" />
+                                    <x-text-input id="outlet_name" name="outlet_name" type="text" class="mt-1 block w-full" :value="old('outlet_name', $outlet->outlet_name)" required autofocus placeholder="e.g. Central Square Branch" />
+                                    <x-input-error :messages="$errors->get('outlet_name')" class="mt-2" />
+                                </div>
 
-                    <!-- Outlet Name -->
-                    <div class="mb-4">
-                        <label for="outlet_name" class="block text-sm font-medium text-gray-700">Outlet Name</label>
-                        <input id="outlet_name" type="text" name="outlet_name"
-                               value="{{ old('outlet_name', $outlet->outlet_name) }}"
-                               class="form-input mt-1 block w-full text-sm" required>
-                    </div>
+                                <div>
+                                    <x-input-label for="machine_number" :value="__('Total Machines')" />
+                                    <x-text-input id="machine_number" name="machine_number" type="number" class="mt-1 block w-full" :value="old('machine_number', $outlet->machine_number)" />
+                                    <x-input-error :messages="$errors->get('machine_number')" class="mt-2" />
+                                </div>
 
-                    <!-- Machine Number -->
-                    <div class="mb-4">
-                        <label for="machine_number" class="block text-sm font-medium text-gray-700">Machine Number</label>
-                        <input id="machine_number" type="text" name="machine_number"
-                               value="{{ old('machine_number', $outlet->machine_number) }}"
-                               class="form-input mt-1 block w-full text-sm">
-                    </div>
+                                <div>
+                                    <x-input-label for="phone" :value="__('Contact Phone')" />
+                                    <x-text-input id="phone" name="phone" type="text" class="mt-1 block w-full" :value="old('phone', $outlet->phone)" placeholder="+60..." />
+                                    <x-input-error :messages="$errors->get('phone')" class="mt-2" />
+                                </div>
 
-                    <!-- Business Hours -->
-                    <div class="mb-4">
-                        <label for="business_hours" class="block text-sm font-medium text-gray-700">Business Hours</label>
-                        <input id="business_hours" type="text" name="business_hours"
-                               value="{{ old('business_hours', $outlet->business_hours) }}"
-                               class="form-input mt-1 block w-full text-sm">
-                    </div>
-
-                    <!-- Country -->
-                    <div class="mb-4">
-                        <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
-                        <input id="country" type="text" name="country"
-                               value="{{ old('country', $outlet->country) }}"
-                               class="form-input mt-1 block w-full text-sm" required>
-                    </div>
-
-                    <!-- Province -->
-                    <div class="mb-4">
-                        <label for="province" class="block text-sm font-medium text-gray-700">Province</label>
-                        <input id="province" type="text" name="province"
-                               value="{{ old('province', $outlet->province) }}"
-                               class="form-input mt-1 block w-full text-sm">
-                    </div>
-
-                    <!-- City -->
-                    <div class="mb-4">
-                        <label for="city" class="block text-sm font-medium text-gray-700">City</label>
-                        <input id="city" type="text" name="city"
-                               value="{{ old('city', $outlet->city) }}"
-                               class="form-input mt-1 block w-full text-sm" required>
-                    </div>
-
-                    <!-- Address -->
-                    <div class="mb-4">
-                        <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
-                        <textarea id="address" name="address"
-                                  class="form-textarea mt-1 block w-full text-sm">{{ old('address', $outlet->address) }}</textarea>
-                    </div>
-
-                    <!-- Phone -->
-                    <div class="mb-4">
-                        <label for="phone" class="block text-sm font-medium text-gray-700">Phone</label>
-                        <input id="phone" type="text" name="phone"
-                               value="{{ old('phone', $outlet->phone) }}"
-                               class="form-input mt-1 block w-full text-sm">
-                    </div>
-
-                    <!-- Manager Dropdown -->
-                    <div class="mb-4">
-                        <x-input-label for="manager_id" :value="__('Manager')" />
-                        <x-dropdown-status name="manager_id" :options="$managers" :selected="old('manager_id', $outlet->manager_id)" class="text-sm" />
-                    </div>
-
-                    <!-- Brand Dropdown -->
-                    <div class="mb-4">
-                        <x-input-label for="brand_id" :value="__('Brand')" />
-                        <x-dropdown-status name="brand_id" :options="$brands" :selected="old('brand_id', $outlet->brand_id)" class="text-sm" />
-                    </div>
-
-                    <!-- Status -->
-                    <div class="mb-4">
-                        <x-input-label for="status_id" :value="__('Status')" />
-                        <x-dropdown-status name="status_id" :options="$statuses" :selected="old('status_id', $outlet->status_id)" class="text-sm" />
-                    </div>
-                    <!-- Type -->
-                    <div class="mb-4">
-                        <x-input-label for="type_id" :value="__('Type')" />
-                        <x-dropdown-status name="type_id" :options="$types" :selected="old('type_id', $outlet->type_id)" class="text-sm" />
-                    </div>
-                    <!-- Latitude & Longitude -->
-                    <div class="mb-4">
-                        <label for="latitude" class="block text-sm font-medium text-gray-700">Latitude</label>
-                        <input id="latitude" type="text" name="latitude"
-                               value="{{ old('latitude', $outlet->latitude) }}"
-                               class="form-input mt-1 block w-full text-sm" readonly>
-                    </div>
-                    <div class="mb-4">
-                        <label for="longitude" class="block text-sm font-medium text-gray-700">Longitude</label>
-                        <input id="longitude" type="text" name="longitude"
-                               value="{{ old('longitude', $outlet->longitude) }}"
-                               class="form-input mt-1 block w-full text-sm" readonly>
-                    </div>
-                    <!-- Map Picker -->
-                    <div x-data="mapManager()" x-init="initMap()" class="space-y-4 border-t pt-6 mt-6">
-                        <h3 class="text-lg font-medium text-gray-900">Location Details</h3>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="latitude" class="block text-sm font-medium text-gray-700">Latitude</label>
-                                <input id="latitude" type="text" name="latitude" x-model="lat"
-                                       class="form-input mt-1 block w-full text-sm bg-gray-50" readonly>
-                            </div>
-                            <div>
-                                <label for="longitude" class="block text-sm font-medium text-gray-700">Longitude</label>
-                                <input id="longitude" type="text" name="longitude" x-model="lng"
-                                       class="form-input mt-1 block w-full text-sm bg-gray-50" readonly>
+                                <div class="md:col-span-2">
+                                    <x-input-label for="business_hours" :value="__('Business Hours')" />
+                                    <x-text-input id="business_hours" name="business_hours" type="text" class="mt-1 block w-full" :value="old('business_hours', $outlet->business_hours)" placeholder="e.g. 9:00 AM - 10:00 PM" />
+                                </div>
                             </div>
                         </div>
 
-                        <div class="relative">
-                            <input type="text" 
-                                x-on:keydown.enter.prevent="searchAddress($event.target.value)"
-                                placeholder="Search address and press Enter..." 
-                                class="w-full border-gray-300 rounded-md shadow-sm mb-2">
+                        <div class="bg-white shadow-sm border border-gray-100 sm:rounded-xl p-6" x-data="mapManager()" x-init="initMap()">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Location Details</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div>
+                                    <x-input-label for="country" :value="__('Country')" />
+                                    <x-text-input id="country" name="country" type="text" class="mt-1 block w-full bg-gray-50" :value="old('country', $outlet->country)" />
+                                </div>
+                                <div>
+                                    <x-input-label for="province" :value="__('State/Province')" />
+                                    <x-text-input id="province" name="province" type="text" class="mt-1 block w-full bg-gray-50" :value="old('province', $outlet->province)" />
+                                </div>
+                                <div>
+                                    <x-input-label for="city" :value="__('City')" />
+                                    <x-text-input id="city" name="city" type="text" class="mt-1 block w-full bg-gray-50" :value="old('city', $outlet->city)" />
+                                </div>
+                                <div class="md:col-span-3">
+                                    <x-input-label for="address" :value="__('Full Address')" />
+                                    <textarea id="address" name="address" rows="2" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">{{ old('address', $outlet->address) }}</textarea>
+                                </div>
+                            </div>
 
-                            <div id="map" style="height: 400px; min-height: 400px;" class="w-full rounded-md shadow-sm border" x-ignore></div>
+                            <div x-data="mapManager()" x-init="initMap()" class="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <div class="flex flex-col md:flex-row gap-4 mb-2">
+                                    <div class="flex-1">
+                                        <input type="text" 
+                                            x-on:keydown.enter.prevent="searchAddress($event.target.value)"
+                                            placeholder="Search location on map..." 
+                                            class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500">
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <input type="text" name="latitude" x-model="lat" readonly class="text-xs border-none bg-transparent text-gray-500 w-24" placeholder="Lat" value="old('latitude', $outlet->latitude)">
+                                        <input type="text" name="longitude" x-model="lng" readonly class="text-xs border-none bg-transparent text-gray-500 w-24" placeholder="Lng" value="old('longitude', $outlet->longitude)">
+                                    </div>
+                                </div>
+                                <div id="map" style="height: 350px;" class="w-full rounded-md shadow-inner border z-0" x-ignore></div>
+                                <p class="text-xs text-gray-500 italic">Click on the map to refine the exact location marker.</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex items-center justify-end mt-4">
-                        <a href="{{ route('outlets.index') }}" class="text-gray-600 hover:underline">← Back to List</a>
-                        <x-primary-button class="ml-4">
-                            Update Outlet
-                        </x-primary-button>
+
+                    <div class="space-y-6">
+                        <div class="bg-white shadow-sm border border-gray-100 sm:rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Classification</h3>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <x-input-label for="brand_id" :value="__('Brand')" />
+                                    <x-dropdown-status name="brand_id" :options="$brands" :selected="old('brand_id', $outlet->brand_id)" class="w-full mt-1" />
+                                </div>
+
+                                <div>
+                                    <x-input-label for="type_id" :value="__('Outlet Type')" />
+                                    <x-dropdown-status name="type_id" :options="$types" :selected="old('type_id', $outlet->type_id)" class="w-full mt-1" />
+                                </div>
+
+                                <div>
+                                    <x-input-label for="status_id" :value="__('Operation Status')" />
+                                    <x-dropdown-status name="status_id" :options="$statuses" :selected="old('status_id', $outlet->status_id)" class="w-full mt-1" />
+                                </div>
+
+                                <div>
+                                    <x-input-label for="manager_id" :value="__('Assigned Manager')" />
+                                    <x-dropdown-status name="manager_id" :options="$managers" :selected="old('manager_id', $outlet->manager_id)" class="w-full mt-1" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 border border-dashed border-gray-300 sm:rounded-xl p-6 flex flex-col gap-3">
+                            <x-primary-button class="w-full justify-center py-3">
+                                {{ __('Update Outlet') }}
+                            </x-primary-button>
+                            <a href="{{ route('outlets.index') }}" class="text-center text-sm text-gray-600 hover:text-red-500 transition">
+                                Cancel and Discard
+                            </a>
+                        </div>
                     </div>
-                </form>
-            </div>
+
+                </div>
+            </form>
         </div>
     </div>
     @push('scripts')

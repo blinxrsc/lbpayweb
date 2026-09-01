@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h> // Library for permanent storage
 #include <esp_task_wdt.h> // ESP32 Watchdog library
+#include <HTTPUpdate.h>
 
 // --- Configuration ---
 const char* ssid = "paynwash";
@@ -19,47 +20,114 @@ unsigned long lastMsg = 0;
 int coinCount = 0; // Temporary storage for pulses before sending
 volatile int pendingPulses = 0; // 'volatile' is required for interrupt variables
 unsigned long lastInterruptTime = 0;
-const int COIN_PIN = 14;
+const int COIN_PIN = 14; 
+const int COIN_OUTPUT_PIN = 27; // GPIO to simulate coin pulses to machine
 
 // Topics
 String telemetry_topic = "machines/" + String(device_serial) + "/telemetry";
 String reboot_topic = "machines/" + String(device_serial) + "/cmd";
+String status_topic = "machines/" + String(device_serial) + "/status";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 Preferences preferences;
 
-// Use a configuration structure instead of just an int
+// watchdog, Use a configuration structure instead of just an int
 esp_task_wdt_config_t wdt_config = {
     .timeout_ms = 5000,               // 5 seconds (must be in milliseconds now)
-    .idle_handle_mask = 1 << portNUM_PROCESSORS, // Watch all cores
+    .idle_core_mask = (1 << 2) - 1, // Watch all cores
     .trigger_panic = true             // Restart on timeout
 };
 
 // --- 1. ADDED CALLBACK FOR REMOTE RESET ---
 void callback(char* topic, byte* payload, unsigned int length) {
-    String message = "";
-    for (int i = 0; i < length; i++) {
-        message += (char)payload[i];
-    }
+  String message = "";
+  StaticJsonDocument<256> doc;
+  deserializeJson(doc, payload, length);
+  const char* action = doc["action"];
 
-    Serial.print("Message arrived ["); Serial.print(topic); Serial.print("] ");
-    Serial.println(message);
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
 
-    // Check if the message is a REBOOT command
-    if (String(topic) == reboot_topic && message == "REBOOT") {
-        Serial.println("Remote Reset Triggered! Rebooting...");
-        delay(1000);
-        ESP.restart(); // This physically restarts the ESP32
+  Serial.print("Message arrived ["); Serial.print(topic); Serial.print("] ");
+  Serial.println(message);
+
+  // Check if the message is a REBOOT command
+  if (doc["action"] == "REBOOT") {
+      Serial.println("Remote Reset Triggered! Rebooting...");
+      delay(1000);
+      ESP.restart(); // This physically restarts the ESP32
+  }
+
+  if (doc["action"] == "REMOTE_START") {
+      const char* type = doc["type"];
+      int pulseWidth = doc["width"] | 100;   // How long the "button" is pressed
+      int pulseDelay = doc["delay"] | 100;   // Gap between pulses
+      float price = doc["price"];
+      
+      Serial.printf("Remote Start Triggered: %s at $%f\n", type, price);
+
+      // Logic: If cold price is $1 and pulse_price is $0.10, send 10 pulses
+      // You would pull the 'pulse_price' from your settings
+      int pulsesToSend = (int)(price / 0.10); // Example calculation
+      
+      for(int i=0; i < pulsesToSend; i++) {
+          digitalWrite(COIN_OUTPUT_PIN, LOW); // Trigger machine coin line
+          delay(pulseWidth);        // Timing from Laravel 
+          digitalWrite(COIN_OUTPUT_PIN, HIGH);
+          delay(pulseDelay);        // Gap from Laravel
+          esp_task_wdt_reset();
+      }
+      
+      Serial.println("Pulses sent to machine!");
+  }
+
+  if (message.startsWith("UPDATE:")) {
+    String updateUrl = message.substring(7); // Extract the URL
+    Serial.println("Starting OTA Update from: " + updateUrl);
+    
+    // 1. Tell Laravel we are starting
+    client.publish(status_topic.c_str(), "{\"ota_status\":\"downloading\"}");
+
+    // This line handles everything. It will reboot the ESP32 when done.
+    t_httpUpdate_return ret = httpUpdate.update(espClient, updateUrl);
+    esp_task_wdt_reset();
+
+    switch (ret) {
+      case HTTP_UPDATE_FAILED: {
+        Serial.printf("Update Failed! Error (%d): %s\n", 
+          httpUpdate.getLastError(), 
+          httpUpdate.getLastErrorString().c_str());
+          String errorMsg = "{\"ota_status\":\"failed\", \"error\":\"" + httpUpdate.getLastErrorString() + "\"}";
+          client.publish(status_topic.c_str(), errorMsg.c_str());
+          break;
+      }
+      case HTTP_UPDATE_NO_UPDATES: {
+        Serial.println("No update needed.");
+        break;
+      }
+      case HTTP_UPDATE_OK: {
+        Serial.println("Update successful! Sending status...");
+        // ADD THIS LINE: Tell Laravel the update finished successfully
+        client.publish(status_topic.c_str(), "{\"ota_status\":\"success\"}");
+        // The ESP32 will now reboot
+        ESP.restart(); 
+        break;
+      }
     }
+  }
 }
 
 void setup_wifi() {
+  unsigned long startAttemptTime = millis();
   delay(10);
   Serial.print("Connecting to "); Serial.println(ssid);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500); Serial.print(".");
+  while (WiFi.status() != WL_CONNECTED && millis()- startAttemptTime < 10000) {
+    delay(100); 
+    esp_task_wdt_reset(); // feed watchdog during WiFi connect
+    Serial.print(".");
   }
   Serial.println("\nWiFi connected");
 }
@@ -71,6 +139,7 @@ void reconnect() {
     // --- LAST WILL AND TESTAMENT (LWT) ---
     // If the ESP32 loses power, EMQX will publish this "offline" message automatically
     String lwtMessage = "{\"status\":\"offline\"}";
+    Serial.println(lwtMessage);
     
     if (client.connect(device_serial, mqtt_user, mqtt_pass, telemetry_topic.c_str(), 1, true, lwtMessage.c_str())) {
       Serial.println("connected");
@@ -149,6 +218,13 @@ void setup() {
   pinMode(COIN_PIN, INPUT_PULLUP); 
   // --- CONFIGURE INTERRUPT ---
   attachInterrupt(digitalPinToInterrupt(COIN_PIN), handleCoinPulse, FALLING);
+
+  pinMode(COIN_OUTPUT_PIN, OUTPUT);
+  digitalWrite(COIN_OUTPUT_PIN, HIGH); // idle state
+
+  // Send a boot event to the status topic
+  String bootPayload = "{\"event\":\"boot\",\"status\":\"online\",\"version\":\"1.0.2\"}";
+  client.publish(status_topic.c_str(), bootPayload.c_str());
 }
 
 void loop() {

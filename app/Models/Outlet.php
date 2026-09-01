@@ -53,4 +53,27 @@ class Outlet extends Model
         return $this->hasManyThrough(DeviceTransaction::class, DeviceOutlet::class);
     }
 
+    // Backend users (admins / outlet managers) granted access to this outlet
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'outlet_user');
+    }
+
+    /**
+     * Scope a query to only the outlets the given user may access.
+     * Users with the 'outlets.view-all' permission see everything.
+     *
+     * Usage: Outlet::accessibleBy(auth()->user())->get();
+     */
+    public function scopeAccessibleBy($query, User $user)
+    {
+        if ($user->canAccessAllOutlets()) {
+            return $query;
+        }
+
+        return $query->whereHas('users', function ($q) use ($user) {
+            $q->where('users.id', $user->id);
+        });
+    }
+
 }

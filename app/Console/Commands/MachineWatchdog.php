@@ -67,15 +67,15 @@ class MachineWatchdog extends Command
     }
 
     private function sendTelegram($text)
-    {
-        $response = Http::post("https://api.telegram.org/bot" . env('TELEGRAM_BOT_TOKEN') . "/sendMessage", [
-            'chat_id' => env('TELEGRAM_CHAT_ID'),
+    {   
+        $response = Http::post("https://api.telegram.org/bot" . config('services.telegram.bot_token') . "/sendMessage", [
+            'chat_id' => config('services.telegram.admin_chat_id'),
             'text' => $text,
             'parse_mode' => 'Markdown'
         ]);
 
         if (!$response->successful()) {
-            Log::error("Telegram Alert Failed: " . $response->body());
+            \Log::error("Telegram Alert Failed: " . $response->body());
         }
     }
 }

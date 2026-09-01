@@ -16,8 +16,8 @@ class OutletController extends Controller
      */
     public function index(Request $r)
     {
-        // Start query with relationships
-        $query = Outlet::with(['brand', 'manager','status','type']);
+        // Start query with relationships, scoped to outlets this user may access
+        $query = Outlet::accessibleBy($r->user())->with(['brand', 'manager','status','type']);
 
         // Filter by status if provided
         if ($r->filled('status')) { // 'filled' ensures it's not null or empty
@@ -46,6 +46,10 @@ class OutletController extends Controller
      */
     public function create()
     {
+        // Creating a brand-new outlet isn't scoped to an existing outlet,
+        // so it's restricted to users who can see/manage every outlet.
+        abort_unless(auth()->user()->canAccessAllOutlets(), 403);
+
         $brands = Brand::all();
         $managers = Manager::all();
         $statuses = TypeStatus::all();
@@ -58,6 +62,8 @@ class OutletController extends Controller
      */
     public function store(Request $request)
     {
+        abort_unless($request->user()->canAccessAllOutlets(), 403);
+
         $validated = $request->validate([
             'outlet_name' => 'required|string|max:255',
             'machine_number' => 'nullable|string|max:255',
@@ -134,6 +140,11 @@ class OutletController extends Controller
     //public function destroy(string $id)
     public function destroy(Outlet $outlet)
     {
+        // Deleting is destructive; restrict to users who manage every outlet.
+        // (Read/edit access for this specific outlet is already enforced by
+        // the 'outlet.access' route middleware.)
+        abort_unless(auth()->user()->canAccessAllOutlets(), 403);
+
         $outlet->delete();
         return redirect()->route('outlets.index')->with('success', 'Outlet deleted successfully.');
     }

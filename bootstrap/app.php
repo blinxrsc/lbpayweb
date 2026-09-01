@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\VerifyDeviceApiKey;
+use App\Http\Middleware\EnsureOutletAccess;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             //'role' => RoleMiddleware::class,
             'role' => RoleMiddleware::class,
             'device.key' => VerifyDeviceApiKey::class,
+            'outlet.access' => EnsureOutletAccess::class,
         ]);
         // This tells Laravel to trust the headers sent by your Proxy Manager
         $middleware->trustProxies(at: '*'); 

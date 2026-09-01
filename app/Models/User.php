@@ -61,4 +61,47 @@ class User extends Authenticatable
             ->logOnlyDirty() // Only log if something actually changed
             ->dontSubmitEmptyLogs();
     }
+
+    /**
+     * Outlets this user has explicitly been granted access to.
+     * Ignored for users who canAccessAllOutlets() (e.g. admins).
+     */
+    public function outlets()
+    {
+        return $this->belongsToMany(Outlet::class, 'outlet_user');
+    }
+
+    /**
+     * Users with this permission see/manage every outlet, regardless of
+     * what's in the outlet_user pivot table. Give this to the 'admin' role.
+     */
+    public function canAccessAllOutlets(): bool
+    {
+        return $this->can('outlets.view-all');
+    }
+
+    /**
+     * List of outlet IDs this user is allowed to access.
+     * Returns null to mean "unrestricted / all outlets".
+     */
+    public function accessibleOutletIds(): ?array
+    {
+        if ($this->canAccessAllOutlets()) {
+            return null;
+        }
+
+        return $this->outlets()->pluck('outlets.id')->all();
+    }
+
+    /**
+     * Whether this user may access the given outlet.
+     */
+    public function canAccessOutlet(int|string $outletId): bool
+    {
+        if ($this->canAccessAllOutlets()) {
+            return true;
+        }
+
+        return $this->outlets()->where('outlets.id', $outletId)->exists();
+    }
 }

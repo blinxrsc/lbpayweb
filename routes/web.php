@@ -140,7 +140,10 @@ Route::middleware(['auth:web'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::resource('outlets', OutletController::class);
+    // 'outlet.access' checks the {outlet} route-model-bound param against the
+    // logged-in user's assigned outlets (no-op on index/create/store, which
+    // have no bound outlet — those are filtered/gated inside the controller).
+    Route::resource('outlets', OutletController::class)->middleware('outlet.access');
 
     Route::get('/devices/{device}/qrcode', [DeviceController::class, 'generateQr'])->name('devices.qrcode');
     Route::get('/devices/{device}/qrcode-inline', [DeviceController::class, 'generateQrInline'])->name('devices.qrcode.inline');

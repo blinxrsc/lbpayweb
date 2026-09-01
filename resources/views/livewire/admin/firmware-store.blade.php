@@ -15,10 +15,11 @@ new class extends Component
     public function save() {
         $this->validate([
             'version' => 'required|unique:firmware,version',
-            'firmwareFile' => 'required|max:2048', // Max 2MB for ESP32
+            'firmwareFile' => 'required|file|max:2048|mimes:bin,zip,hex', // adjust mimes as needed, 2MB for esp32
         ]);
 
-        $path = $this->firmwareFile->store('firmware'); // Storing in public disk
+        // Store file using Livewire property
+        $path = $this->firmwareFile->store('firmware', 'public');
 
         Firmware::create([
             'version' => $this->version,

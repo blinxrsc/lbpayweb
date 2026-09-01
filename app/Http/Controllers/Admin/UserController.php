@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User; 
+use App\Models\Outlet;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Spatie\Activitylog\Models\Activity;
@@ -47,7 +48,8 @@ class UserController extends Controller
         //add 29-12-25
         $roles = Role::all(); 
         $permissions = Permission::all();
-        return view('admin.users.create', compact('roles', 'permissions'));
+        $outlets = Outlet::orderBy('outlet_name')->get();
+        return view('admin.users.create', compact('roles', 'permissions', 'outlets'));
         //end
     }
 
@@ -61,7 +63,9 @@ class UserController extends Controller
             'name' => 'required', 
             'email' => 'required|email|unique:users', 
             'password' => 'required|min:6', 
-            'role' => 'required' 
+            'role' => 'required',
+            'outlet_ids' => 'array',
+            'outlet_ids.*' => 'exists:outlets,id',
         ]); 
         
         $user = User::create([ 
@@ -75,6 +79,10 @@ class UserController extends Controller
         { 
             $user->syncPermissions($request->permissions); 
         }
+
+        // Outlets this user may access (ignored for users with 'outlets.view-all').
+        $user->outlets()->sync($request->input('outlet_ids', []));
+
         return redirect()->route('users.index')->with('success', 'User created successfully');
         //end
     }
@@ -96,7 +104,9 @@ class UserController extends Controller
         //add 29-12-25
         $roles = Role::all(); 
         $permissions = Permission::all(); 
-        return view('admin.users.edit', compact('user', 'roles', 'permissions'));
+        $outlets = Outlet::orderBy('outlet_name')->get();
+        $assignedOutletIds = $user->outlets()->pluck('outlets.id')->all();
+        return view('admin.users.edit', compact('user', 'roles', 'permissions', 'outlets', 'assignedOutletIds'));
         //end
     }
 
@@ -109,6 +119,8 @@ class UserController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users,email,' . $user->id, // Correct unique validation for updates
             'role' => 'required', // Validate against the 'roles' table ID field for consistency
+            'outlet_ids' => 'array',
+            'outlet_ids.*' => 'exists:outlets,id',
         ]);
 
         $user->update($request->only('name', 'email')); // Mass assignment requires 'name' and 'email' to be in the User model's $fillable array
@@ -116,6 +128,9 @@ class UserController extends Controller
         // Get the single role name and sync it (syncRoles accepts a single string or array)
         $roleName = Role::where('id', $request->role)->value('name');
         $user->syncRoles($roleName); // Passing a single string works to set that as the ONLY role
+
+        // Outlets this user may access (ignored for users with 'outlets.view-all').
+        $user->outlets()->sync($request->input('outlet_ids', []));
 
         // IMPORTANT: Clear the permission cache so the change is immediate
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();

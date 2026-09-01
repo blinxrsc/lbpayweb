@@ -24,7 +24,10 @@ class RolesAndPermissionsSeeder extends Seeder
 			'manage device',
 			'manage device revenue',
 			'manage ewallet',
-			'manage backup'
+			'manage backup',
+			// Bypasses outlet-level scoping (see User::canAccessAllOutlets()).
+			// Only give this to roles that should see every outlet.
+			'outlets.view-all',
 		];
 
 		foreach ($permissions as $perm) 
@@ -34,9 +37,13 @@ class RolesAndPermissionsSeeder extends Seeder
 		//default roles
 		$admin = Role::firstOrCreate(['name' => 'admin']);
 		$user = Role::firstOrCreate(['name' => 'user']);
+		// Outlet manager: scoped to whichever outlets are assigned to them
+		// via the outlet_user pivot table (see Admin > Users > assign outlets).
+		$outletManager = Role::firstOrCreate(['name' => 'outlet_manager']);
 		//assign permissions
 		$admin->givePErmissionTo(Permission::all());
 		$user->givePermissionTo('manage shop detail');
+		$outletManager->givePermissionTo(['manage shop detail', 'manage device', 'manage device revenue']);
 		// Create demo users for each role 
 		$admin = User::firstOrCreate( ['email' => 'admin@example.com'], ['name' => 'Admin User', 'password' => bcrypt('password')] ); 
 		$admin->assignRole('admin'); 

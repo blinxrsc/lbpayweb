@@ -50,6 +50,25 @@
                             <x-input-error :messages="$errors->get('role')" class="mt-2" />
                         </div>
                     </div>
+
+                    <!-- Outlet Access -->
+                    <div class="mb-4">
+                        <x-input-label :value="__('Outlet Access')" />
+                        <p class="text-sm text-gray-500 mb-2">Ignored for roles/users granted "outlets.view-all" (e.g. admin) — they see every outlet regardless.</p>
+                        <div class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto border rounded-md p-3">
+                            @forelse($outlets as $outlet)
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="outlet_ids[]" value="{{ $outlet->id }}"
+                                           {{ in_array($outlet->id, $assignedOutletIds) ? 'checked' : '' }}
+                                           class="form-control mr-2" />
+                                    {{ $outlet->outlet_name }}
+                                </label>
+                            @empty
+                                <span class="text-sm text-gray-400">No outlets found.</span>
+                            @endforelse
+                        </div>
+                    </div>
+
                     <!-- Submit -->
                     <div class="flex justify-end">
                         <a href="{{ route('users.index') }}" class="text-gray-600 hover:underline">← Back to List</a>
