@@ -145,6 +145,8 @@ Route::middleware(['auth:web'])->group(function () {
     // have no bound outlet — those are filtered/gated inside the controller).
     Route::resource('outlets', OutletController::class)->middleware('outlet.access');
 
+    Route::resource('/devices', DeviceController::class);
+    Route::resource('/device_outlets', DeviceOutletController::class);
     Route::get('/devices/{device}/qrcode', [DeviceController::class, 'generateQr'])->name('devices.qrcode');
     Route::get('/devices/{device}/qrcode-inline', [DeviceController::class, 'generateQrInline'])->name('devices.qrcode.inline');
     //Route::get('/device/{serial}', [DeviceController::class, 'scan'])->name('device.scan');
@@ -201,7 +203,6 @@ Route::middleware(['auth:web'])->group(function () {
         Route::resource('suppliers', SupplierController::class);
 
         // Devices
-        Route::resource('/devices', DeviceController::class);
         Route::match(['get', 'post'], '/devices/CSV', [DeviceController::class, 'CSV'])->name('devices.CSV');
         Route::post('/devices/import', [DeviceController::class, 'confirmImport'])->name('devices.import.confirm');
         Route::put('/devices/{log}/rollback', [DeviceController::class, 'rollback'])->name('devices.rollback');
@@ -210,7 +211,7 @@ Route::middleware(['auth:web'])->group(function () {
         Route::post('/devices/completed', [DeviceController::class, 'repairCompleted'])->name('devices.repairCompleted');
 
         // Device outlets
-        Route::resource('/device_outlets', DeviceOutletController::class);
+        //Route::resource('/device_outlets', DeviceOutletController::class);
         Route::match(['get', 'post'], '/device_outlet/CSV', [DeviceOutletController::class, 'CSV'])->name('device_outlets.CSV');
         
         // Payment gateway
@@ -256,9 +257,8 @@ Route::middleware(['auth:web'])->group(function () {
             Route::get('/admin/backup/status/{backupId}', [BackupController::class, 'checkStatus']);
             Route::get('/admin/backup/download/{filename}', [BackupController::class, 'download'])->name('backup.download');
         });
-        
-        Route::get('/admin/health', \Spatie\Health\Http\Controllers\HealthCheckResultsController::class)->name('admin.health');
         //logs
+        Route::get('/admin/health', \Spatie\Health\Http\Controllers\HealthCheckResultsController::class)->name('admin.health');
         Route::get('mailserver/logs', [MailServerController::class, 'logs'])->name('mailserver.logs');
         Route::get('admin/logs', [UserController::class, 'userLogs'])->name('admin.user.logs');
         //firmware

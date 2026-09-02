@@ -128,13 +128,16 @@
                                             <x-heroicon-o-eye class="w-5 h-5"/>
                                         </a>
                                         <!-- Edit Button -->
+                                        @can('devices_outlet.edit')
                                         <a href="{{ route('device_outlets.edit', $tx) }}" 
                                             class="inline-flex items-center px-2 py-1 text-indigo-600 hover:text-indigo-800"
                                             title="Edit"
                                         >
                                             <x-heroicon-o-pencil-square class="w-5 h-5"/>
                                         </a>
+                                        @endcan
                                         <!-- Delete Form/Button -->
+                                        @can('devices_outlet.delete')
                                         <button type="button" 
                                             class="inline-flex items-center px-2 py-1 text-red-600 hover:text-red-800"
                                             title="Delete" 
@@ -143,6 +146,7 @@
                                         >
                                             <x-heroicon-o-trash class="w-5 h-5"/>
                                         </button>
+                                        @endcan
                                         <!-- Modal -->
                                         <x-modal name="confirm-delete-{{ $tx->device_serial_number }}" maxWidth="2xl">
                                             <div class="p-6">

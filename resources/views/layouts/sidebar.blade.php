@@ -68,6 +68,13 @@
                         Manage Outlets
                     </x-nav-link>
                 </li>
+                @can('devices_outlet.manage')
+                <li>
+                    <x-nav-link :href="route('device_outlets.index')" :active="request()->routeIs('device_outlets.*')" class="{{ request()->routeIs('device_outlets.*') ? 'text-blue-600' : 'text-gray-400' }}">
+                        Manage Device ↔ Outlet
+                    </x-nav-link>
+                </li>
+                @endcan
                 @can('outlets.brand')
                 <li>
                     <x-nav-link :href="route('brands.index')" :active="request()->routeIs('brands.*')" class="{{ request()->routeIs('brands.*') ? 'text-blue-600' : 'text-gray-400' }}" >
@@ -100,18 +107,13 @@
                 </svg>
             </button>              
             <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-11">
-                @can('devices_outlet.manage')
-                <li>
-                    <x-nav-link :href="route('device_outlets.index')" :active="request()->routeIs('device_outlets.*')" class="{{ request()->routeIs('device_outlets.*') ? 'text-blue-600' : 'text-gray-400' }}">
-                        Manage Device ↔ Outlet
-                    </x-nav-link>
-                </li>
-                @endcan
+                @can('devices.manage')
                 <li>
                     <x-nav-link :href="route('devices.index')" :active="request()->routeIs('devices.*')" class="{{ request()->routeIs('devices.*') ? 'text-blue-600' : 'text-gray-400' }}">
                         Manage Devices
                     </x-nav-link>
                 </li>
+                @endcan
                 @can('devices.supplier')
                 <li>
                     <x-nav-link :href="route('suppliers.index')" :active="request()->routeIs('suppliers.*')" class="{{ request()->routeIs('suppliers.*') ? 'text-blue-600' : 'text-gray-400' }}">
@@ -318,6 +320,7 @@
         </li>
         @endcan
         <!-- Logs -->
+        @can('logs.manage')
         <li x-data="{ open: {{ request()->routeIs('mailserver.logs', 'admin.health','admin.user.logs') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
@@ -331,16 +334,23 @@
                 </svg>
             </button>              
             <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-11">
+                @can('logs.health')
                 <li>
                     <x-nav-link :href="route('admin.health')" :active="request()->routeIs('admin.health')" class="{{ request()->routeIs('admin.health')? 'text-blue-600' : 'text-gray-400' }}">System Health</x-nav-link>
                 </li>
+                @endcan
+                @can('logs.user')
                 <li>
                     <x-nav-link :href="route('admin.user.logs')" :active="request()->routeIs('admin.user.logs')" class="{{ request()->routeIs('admin.user.logs')? 'text-blue-600' : 'text-gray-400' }}">User Logs</x-nav-link>
                 </li>
+                @endcan
+                @can('logs.mailserver')
                 <li>
                     <x-nav-link :href="route('mailserver.logs')" :active="request()->routeIs('mailserver.logs')" class="{{ request()->routeIs('mailserver.logs')? 'text-blue-600' : 'text-gray-400' }}">Mail Server Logs</x-nav-link>
                 </li>
+                @endcan
             </ul>
         </li>
+        @endcan
     </ul>
 </div>
