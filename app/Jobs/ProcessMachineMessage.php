@@ -58,20 +58,25 @@ class ProcessMachineMessage implements ShouldQueue
         }
 
         // 3. DATABASE UPDATES (Throttled)
-        // Only hit the DB if there are coins OR if the status changed.
-        // We avoid updating 'last_seen_at' in the DB every 5 seconds to save RDS IOPS.
-        if ($coinsToAdd > 0 || $statusFromPayload === 'offline') {
+        // Only hit the DB if there are coins OR if the status actually changed.
+        // We avoid updating 'last_seen_at' in the DB on every heartbeat to save
+        // RDS IOPS. NOTE: this used to only check `$statusFromPayload === 'offline'`,
+        // which meant the DB status column could be flipped to 'offline' but never
+        // flipped back to 'online' on reconnect (only a coin pulse would do that) —
+        // so it stayed stuck showing "Offline" long after the device was back up.
+        // Comparing against the currently stored status catches both directions.
+        $machine = DeviceOutlet::where('device_serial_number', $this->serial)->first();
+
+        if (!$machine) {
+            Log::warning("Machine not found: {$this->serial}");
+            return;
+        }
+
+        $statusChanged = $machine->status !== $statusFromPayload;
+
+        if ($coinsToAdd > 0 || $statusChanged) {
             // Using a transaction to ensure atomic updates if multiple fields change
-            DB::transaction(function () use ($statusFromPayload, $coinsToAdd, $now) {
-                // 2. Find the machine
-                $machine = DeviceOutlet::where('device_serial_number', $this->serial)->first();
-
-                if (!$machine) {
-                    Log::warning("Machine not found: {$this->serial}");
-                    return;
-                }
-
-                // 2. Atomic Update to prevent race conditions
+            DB::transaction(function () use ($machine, $statusFromPayload, $coinsToAdd, $now) {
                 $updateData = [
                     'status' => $statusFromPayload, // Use the dynamic value!
                     'availability' => ($statusFromPayload === 'online') ? 1 : 0, // Or whatever logic you use for idle
