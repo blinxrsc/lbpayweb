@@ -83,6 +83,12 @@ class PaymentController extends Controller
     public function initiateDevicePayment(Request $r) 
     {
         $r->validate(['amount' => 'required|numeric|min:1']);
+
+        $deviceOutlet = DeviceOutlet::where('id', $r->device_outlet_id)->firstOrFail();
+        if (!$deviceOutlet->is_online) {
+            return redirect()->back()->with('error', 'This machine is currently offline and unable to accept payments. Please try another machine.');
+        }
+
         $customer = auth('customer')->user(); //$customerId = auth('customer')->id();
         $orderId = 'ORD-M-' . now()->format('YmdHis') . '-' . $customer->id;
         $amount = number_format($r->amount, 2, '.', '');
@@ -130,6 +136,11 @@ class PaymentController extends Controller
     {
         $customer = Auth::guard('customer')->user();
         $amount = $request->amount;
+
+        $deviceOutlet = DeviceOutlet::where('id', $request->device_outlet_id)->firstOrFail();
+        if (!$deviceOutlet->is_online) {
+            return back()->with('error', 'This machine is currently offline and unable to accept payments. Please try another machine.');
+        }
 
         if ($customer->ewalletAccount->credit_balance >= $amount) {
             // Deduct balance
@@ -274,6 +285,12 @@ class PaymentController extends Controller
     public function initiateQRPayment(Request $r) 
     {
         $r->validate(['amount' => 'required|numeric|min:1']);
+
+        $deviceOutlet = DeviceOutlet::where('id', $r->device_outlet_id)->firstOrFail();
+        if (!$deviceOutlet->is_online) {
+            return redirect()->back()->with('error', 'This machine is currently offline and unable to accept payments. Please try another machine.');
+        }
+
         $customer = 0;
         $orderId = 'ORD-M-' . now()->format('YmdHis') . '-' . $customer;
         $amount = number_format($r->amount, 2, '.', '');
@@ -310,7 +327,6 @@ class PaymentController extends Controller
         ]);
         // Render topup form with gateway values
         $customer = Customer::where('id', $customer)->firstOrFail();
-        $deviceOutlet = DeviceOutlet::where('id', $r->device_outlet_id)->firstOrFail();
         return view('customer.payment.qr-device-form', [
             'amount'    => $amount,
             'orderId'   => $orderId,
