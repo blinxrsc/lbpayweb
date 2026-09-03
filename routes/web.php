@@ -145,10 +145,26 @@ Route::middleware(['auth:web'])->group(function () {
     // have no bound outlet — those are filtered/gated inside the controller).
     Route::resource('outlets', OutletController::class)->middleware('outlet.access');
 
-    Route::resource('/devices', DeviceController::class);
-    Route::resource('/device_outlets', DeviceOutletController::class);
-    Route::get('/devices/{device}/qrcode', [DeviceController::class, 'generateQr'])->name('devices.qrcode');
-    Route::get('/devices/{device}/qrcode-inline', [DeviceController::class, 'generateQrInline'])->name('devices.qrcode.inline');
+    Route::middleware('can:devices.manage')->group(function () {
+        Route::resource('/devices', DeviceController::class);
+        Route::get('/devices/{device}/qrcode', [DeviceController::class, 'generateQr'])->name('devices.qrcode');
+        Route::get('/devices/{device}/qrcode-inline', [DeviceController::class, 'generateQrInline'])->name('devices.qrcode.inline');
+    });
+
+    // Split by action so the .edit/.delete permissions actually gate those
+    // routes server-side — matching the icons hidden by @can() in
+    // resources/views/device_outlets/index.blade.php. Registering the same
+    // resource multiple times with ->only() is safe: each call registers a
+    // disjoint set of route names, so there's no duplication/conflict.
+    Route::middleware('can:devices_outlet.manage')->group(function () {
+        Route::resource('device_outlets', DeviceOutletController::class)->only(['index', 'show', 'create', 'store']);
+    });
+    Route::middleware('can:devices_outlet.edit')->group(function () {
+        Route::resource('device_outlets', DeviceOutletController::class)->only(['edit', 'update']);
+    });
+    Route::middleware('can:devices_outlet.delete')->group(function () {
+        Route::resource('device_outlets', DeviceOutletController::class)->only(['destroy']);
+    });
     //Route::get('/device/{serial}', [DeviceController::class, 'scan'])->name('device.scan');
 
     //report

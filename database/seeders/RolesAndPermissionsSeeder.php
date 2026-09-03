@@ -28,6 +28,19 @@ class RolesAndPermissionsSeeder extends Seeder
 			// Bypasses outlet-level scoping (see User::canAccessAllOutlets()).
 			// Only give this to roles that should see every outlet.
 			'outlets.view-all',
+			// Dot-notation permissions added manually via Admin > Permissions
+			// and wired into routes/web.php + Blade @can() checks. Listed here
+			// too so a fresh environment's seed matches what's already live.
+			'devices.manage',
+			'devices_outlet.manage',
+			'devices_outlet.edit',
+			'devices_outlet.delete',
+			'ewallet.manage',
+			'setting.backup',
+			'logs.manage',
+			'logs.health',
+			'logs.user',
+			'logs.mailserver',
 		];
 
 		foreach ($permissions as $perm) 
@@ -43,7 +56,20 @@ class RolesAndPermissionsSeeder extends Seeder
 		//assign permissions
 		$admin->givePErmissionTo(Permission::all());
 		$user->givePermissionTo('manage shop detail');
-		$outletManager->givePermissionTo(['manage shop detail', 'manage device', 'manage device revenue']);
+		// NOTE: 'devices.manage' / 'devices_outlet.manage' / 'devices_outlet.edit'
+		// are the ones routes/web.php actually checks now (can:devices.manage etc.) —
+		// keeping the older 'manage device' / 'manage device revenue' strings too
+		// only because other, not-yet-updated parts of the app may still check them.
+		// Deliberately NOT granting 'devices_outlet.delete' here — removing a
+		// device/outlet assignment is treated as an admin-level action.
+		$outletManager->givePermissionTo([
+			'manage shop detail',
+			'manage device',
+			'manage device revenue',
+			'devices.manage',
+			'devices_outlet.manage',
+			'devices_outlet.edit',
+		]);
 		// Create demo users for each role 
 		$admin = User::firstOrCreate( ['email' => 'admin@example.com'], ['name' => 'Admin User', 'password' => bcrypt('password')] ); 
 		$admin->assignRole('admin'); 
