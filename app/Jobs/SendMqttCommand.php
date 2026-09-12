@@ -9,6 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use PhpMqtt\Client\Facades\MQTT;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use App\Models\RemoteStartLog;
 use App\Models\Device;
 use App\Models\DeviceOutlet;
@@ -30,7 +31,7 @@ class SendMqttCommand implements ShouldQueue
      */
     public function __construct(
         public string $serial,
-        public string $action, // 'REBOOT', 'REMOTE_START', UPDATE.
+        public string $action, // 'REBOOT', 'REMOTE_START', 'CONFIG', 'UPDATE'.
         public array $payload = [],
         public int $userId
     ) {}
@@ -40,6 +41,8 @@ class SendMqttCommand implements ShouldQueue
      */
     public function handle(): void
     {
+        $retain = false;
+
         // 1. Prepare the MQTT Message
         if ($this->action === 'REBOOT') {
             $message = 'REBOOT';
@@ -51,28 +54,60 @@ class SendMqttCommand implements ShouldQueue
         } elseif ($this->action === 'REMOTE_START') {
             // Fetch device settings for hardware-specific pulse timing
             $device = Device::where('serial_number', $this->serial)->first();
-            
+
             // Safety check for device
             if (!$device) {
                 Log::error("Device not found: {$this->serial}");
                 return; // Or throw an exception to retry
             }
 
+            // op_id lets the firmware ack this specific attempt and ignore a
+            // redelivered/duplicate copy of the same command (see v1.3 firmware).
+            // 'pulses' should already be computed by the caller from this
+            // device's pulse_price — this job does not recompute it, so
+            // whatever calculated the price is the single source of truth.
             $fullPayload = array_merge([
                 'action' => $this->action,
+                'op_id'  => (string) Str::uuid(),
                 'width'  => $device->pulse_width ?? 100,
                 'delay'  => $device->pulse_delay ?? 100,
             ], $this->payload);
 
+            if (!isset($fullPayload['pulses'])) {
+                Log::error("REMOTE_START dispatched without a 'pulses' value for {$this->serial}");
+                return;
+            }
+
             $message = json_encode($fullPayload);
+        } elseif ($this->action === 'CONFIG') {
+            // Pushes this device's pulse/coin timing down to the ESP32.
+            // Published with retain=true so a device that's currently
+            // offline/rebooting picks it up the moment it reconnects and
+            // (re)subscribes to this topic — safe to retain, unlike a
+            // REMOTE_START/REBOOT command.
+            $device = Device::where('serial_number', $this->serial)->first();
+            if (!$device) {
+                Log::error("Device not found: {$this->serial}");
+                return;
+            }
+
+            $message = json_encode([
+                'action'               => 'CONFIG',
+                'pulse_width_ms'       => $device->pulse_width,
+                'pulse_delay_ms'       => $device->pulse_delay,
+                'coin_signal_width_ms' => $device->coin_signal_width,
+            ]);
+            $retain = true;
         } elseif ($this->action === 'UPDATE') {
             $message = "UPDATE:{$this->payload['url']}";
         }
 
         // 2. Publish to MQTT with error handling
         try {
-            // QoS 0 is default, OK for non-critical commands
-            MQTT::publish("machines/{$this->serial}/cmd", $message);
+            // QoS 0 is default, OK for non-critical commands. REMOTE_START
+            // reliability comes from the firmware's op_id ack protocol +
+            // whatever timeout/retry the caller applies, not MQTT QoS.
+            MQTT::publish("machines/{$this->serial}/cmd", $message, $retain);
             Log::info("MQTT [{$this->action}] sent to {$this->serial}");
         } catch (Exception $e) {
             Log::error("MQTT Send failed for {$this->serial}: " . $e->getMessage());

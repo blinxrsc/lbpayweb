@@ -82,6 +82,13 @@ new class extends Component {
             return;
         }
 
+        $device = Device::where('serial_number', $serial)->first();
+        if (!$device || (float) $device->pulse_price <= 0) {
+            $this->dispatch('notify', message: "This device has no pulse_price configured.", type: 'error');
+            return;
+        }
+        $pulses = (int) ceil($price / $device->pulse_price);
+
         // Lock for 30 seconds to prevent double-clicks
         Redis::setex($lockKey, 30, 'true');
 
@@ -90,11 +97,11 @@ new class extends Component {
         SendMqttCommand::dispatch(
             $serial, 
             'REMOTE_START', 
-            ['type' => $type, 'price' => $price], // We send the 'type' (e.g., WASHER_HOT) so the ESP32 knows which relay to click
+            ['type' => $type, 'price' => $price, 'pulses' => $pulses], // We send the 'type' (e.g., WASHER_HOT) so the ESP32 knows which relay to click
             auth()->id()
         );
         $this->dispatch('close-modal', "confirm-restart-{$serial}");
-        $this->dispatch('notify', message: "Remote Start ($type) queued for $serial", type: 'success');
+        $this->dispatch('notify', message: "Remote Start ($type) queued for $serial ({$pulses} pulses)", type: 'success');
     }
 
     // 3. Define data for the view
