@@ -43,40 +43,40 @@
                 <div class="p-6 bg-white border-b border-gray-200">
                     <!-- Transactions Table -->
                     <div class="overflow-x-auto">
-                        <table class="min-w-full border-collapse border">
+                        <table class="min-w-full">
                             <thead class="text-sm">
-                                <tr class="bg-gray-100">
-                                    <th class="border px-4 py-2">Outlet</th>
-                                    <th class="border px-4 py-2">Total Machine</th>
-                                    <th class="border px-4 py-2">Business Hours</th>
-                                    <th class="border px-4 py-2">Country</th>
-                                    <th class="border px-4 py-2">State</th>
-                                    <th class="border px-4 py-2">City</th>
-                                    <th class="border px-4 py-2">Address</th>
-                                    <th class="border px-4 py-2">Longitude</th>
-                                    <th class="border px-4 py-2">Latitude</th>
-                                    <th class="border px-4 py-2">Phone</th>
-                                    <th class="border px-4 py-2">Brand</th>
-                                    <th class="border px-4 py-2">Active</th>
-                                    <th class="border px-4 py-2">Type</th>
-                                    <th class="border px-4 py-2">Manager</th>
+                                <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                                    <th class="px-4 py-2">Outlet</th>
+                                    <th class="px-4 py-2">Total Machine</th>
+                                    <th class="px-4 py-2">Business Hours</th>
+                                    <th class="px-4 py-2">Country</th>
+                                    <th class="px-4 py-2">State</th>
+                                    <th class="px-4 py-2">City</th>
+                                    <th class="px-4 py-2">Address</th>
+                                    <th class="px-4 py-2">Longitude</th>
+                                    <th class="px-4 py-2">Latitude</th>
+                                    <th class="px-4 py-2">Phone</th>
+                                    <th class="px-4 py-2">Brand</th>
+                                    <th class="px-4 py-2">Active</th>
+                                    <th class="px-4 py-2">Type</th>
+                                    <th class="px-4 py-2">Manager</th>
                                     <th class="sticky right-0 bg-gray-100 border px-4 py-2 z-10">Actions</th>
                                 </tr>
                             </thead>
                             <tbody class="text-sm">
                                 @forelse($transactions as $tx)
-                                    <tr>
-                                        <td class="border px-4 py-2">{{ $tx->outlet_name }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->machine_number }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->business_hours }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->country }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->province }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->city }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->address }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->longitude }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->latitude }}</td>
-                                        <td class="border px-4 py-2">{{ $tx->phone }}</td>
-                                        <td class="border px-4 py-2 text-center bg-gray-50/50">
+                                    <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                        <td class="px-4 py-2">{{ $tx->outlet_name }}</td>
+                                        <td class="px-4 py-2">{{ $tx->machine_number }}</td>
+                                        <td class="px-4 py-2">{{ $tx->business_hours }}</td>
+                                        <td class="px-4 py-2">{{ $tx->country }}</td>
+                                        <td class="px-4 py-2">{{ $tx->province }}</td>
+                                        <td class="px-4 py-2">{{ $tx->city }}</td>
+                                        <td class="px-4 py-2">{{ $tx->address }}</td>
+                                        <td class="px-4 py-2">{{ $tx->longitude }}</td>
+                                        <td class="px-4 py-2">{{ $tx->latitude }}</td>
+                                        <td class="px-4 py-2">{{ $tx->phone }}</td>
+                                        <td class="px-4 py-2 text-center bg-gray-50/50">
                                             @if($tx->brand->logo) 
                                                 <img src="{{ asset('storage/' . $tx->brand->logo) }}" 
                                                      alt="{{ $tx->brand->name }}" 
@@ -85,14 +85,14 @@
                                                 <span class="text-xs text-gray-400 italic">{{ $tx->brand->name }}</span>
                                             @endif
                                         </td>
-                                        <td class="border px-4 py-2">
+                                        <td class="px-4 py-2">
                                              <x-status-badge :status="$tx->status->name" />
                                             
                                         </td>
-                                        <td class="border px-4 py-2">
+                                        <td class="px-4 py-2">
                                             <x-status-badge :status="$tx->type->name" />
                                         </td>
-                                        <td class="border px-4 py-2">{{ $tx->manager->name }}</td>
+                                        <td class="px-4 py-2">{{ $tx->manager->name }}</td>
                                         <td class="sticky right-0 bg-white border px-4 py-2">
                                             <!-- View Button -->
                                             <a href="{{ route('outlets.show', $tx) }}" 
@@ -155,7 +155,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr>
+                                    <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                         <td colspan="15" class="px-6 py-12 text-center">
                                             <div class="flex flex-col items-center justify-center">
                                                 <p class="text-gray-500 text-lg font-medium">

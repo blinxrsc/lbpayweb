@@ -114,20 +114,37 @@
                 }
                 </script>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6" x-show="reportData.length > 0">
-                <!-- Total Transaction / Usage -->
-                <div class="bg-white p-6 rounded-lg shadow flex flex-col">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2 gap-3">
-                            <x-heroicon-s-server-stack class="w-6 h-6"/>
-                            <h4 class="text-sm font-semibold text-gray-600">Total Devices Installed</h4>
-                        </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+                @php
+                    $onlineCount = $deviceConnectivity->firstWhere('label', 'online')->total ?? 0;
+                @endphp
+                <div class="bg-white p-5 rounded-lg border border-gray-200">
+                    <div class="flex items-center gap-2 text-gray-500">
+                        <x-heroicon-s-server-stack class="w-5 h-5"/>
+                        <h4 class="text-xs font-semibold uppercase tracking-wide">Total Devices</h4>
                     </div>
-                    <p class="text-3xl font-bold text-indigo-700 mt-2">{{ $totalDevices }}</p>
+                    <p class="text-3xl font-semibold text-gray-900 mt-2">{{ $totalDevices }}</p>
                 </div>
-                <!-- Total Transaction / Usage -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    
+                <div class="bg-white p-5 rounded-lg border border-gray-200">
+                    <div class="flex items-center gap-2 text-gray-500">
+                        <x-heroicon-s-signal class="w-5 h-5"/>
+                        <h4 class="text-xs font-semibold uppercase tracking-wide">Devices Online</h4>
+                    </div>
+                    <p class="text-3xl font-semibold text-gray-900 mt-2">{{ $onlineCount }} <span class="text-base font-normal text-gray-400">/ {{ $totalDevices }}</span></p>
+                </div>
+                <div class="bg-white p-5 rounded-lg border border-gray-200">
+                    <div class="flex items-center gap-2 text-gray-500">
+                        <x-heroicon-s-banknotes class="w-5 h-5"/>
+                        <h4 class="text-xs font-semibold uppercase tracking-wide">Revenue{{ ($start || $end) ? ' (filtered)' : '' }}</h4>
+                    </div>
+                    <p class="text-3xl font-semibold text-gray-900 mt-2">RM {{ number_format($revenueInRange, 2) }}</p>
+                </div>
+                <div class="bg-white p-5 rounded-lg border border-gray-200">
+                    <div class="flex items-center gap-2 {{ $openFaults > 0 ? 'text-red-500' : 'text-gray-500' }}">
+                        <x-heroicon-s-exclamation-triangle class="w-5 h-5"/>
+                        <h4 class="text-xs font-semibold uppercase tracking-wide">Open Faults</h4>
+                    </div>
+                    <p class="text-3xl font-semibold {{ $openFaults > 0 ? 'text-red-600' : 'text-gray-900' }} mt-2">{{ $openFaults }}</p>
                 </div>
             </div>
             <!-- Charts -->
@@ -142,19 +159,21 @@
             <!-- Table -->
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <div class="overflow-x-auto">
-                    <div class="card-header bg-white"><strong>Outlets by City (Top 10)</strong></div>
-                    <table class="table-auto w-full border-collapse">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Outlets by City (Top 10)</h3>
+                    <table class="w-full text-sm">
                         <thead>
-                            <tr class="bg-gray-100">
-                                <th class="px-4 py-2">City</th>
-                                <th class="px-4 py-2">Total Outlets</th>
+                            <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                                <th class="py-2 px-2">City</th>
+                                <th class="py-2 px-2 text-right">Total Outlets</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($byCity as $city)
-                                <tr>
-                                    <td>{{ $city->label }}</td>
-                                    <td><span class="badge bg-primary">{{ $city->total }}</span></td>
+                                <tr class="border-b border-gray-100 last:border-0">
+                                    <td class="py-2 px-2">{{ $city->label }}</td>
+                                    <td class="py-2 px-2 text-right">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">{{ $city->total }}</span>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -164,21 +183,21 @@
             <!-- Table -->
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <div class="overflow-x-auto">
-                    <div class="card-header bg-white"><strong>Outlets by City (Top 10)</strong></div>
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Top Performing Devices (by lifetime coins)</h3>
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="text-left text-gray-500 border-b">
-                                <th class="pb-2">Outlet</th>
-                                <th class="pb-2">Machine ID</th>
-                                <th class="pb-2 text-right">Lifetime Coins</th>
+                            <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                                <th class="py-2 px-2">Outlet</th>
+                                <th class="py-2 px-2">Machine ID</th>
+                                <th class="py-2 px-2 text-right">Lifetime Coins</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($topPerformingDevices as $item)
-                            <tr class="border-b last:border-0">
-                                <td class="py-2">{{ $item->outlet->outlet_name }}</td>
-                                <td class="py-2">#{{ $item->machine_id }}</td>
-                                <td class="py-2 text-right font-bold text-green-600">
+                            <tr class="border-b border-gray-100 last:border-0">
+                                <td class="py-2 px-2">{{ $item->outlet->outlet_name }}</td>
+                                <td class="py-2 px-2">#{{ $item->machine_id }}</td>
+                                <td class="py-2 px-2 text-right font-semibold text-gray-900">
                                     {{ number_format($item->lifetime_coins) }}
                                 </td>
                             </tr>

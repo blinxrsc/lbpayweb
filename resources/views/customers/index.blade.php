@@ -56,34 +56,34 @@
 
             {{-- Customer List Table --}}
             <div class="bg-white shadow-sm sm:rounded-lg p-6 overflow-x-auto">
-                <table class="min-w-full border-collapse border">
+                <table class="min-w-full">
                     <thead>
-                        <tr class="bg-gray-100 text-sm">
-                            <th class="border px-4 py-2">Name</th>
-                            <th class="border px-4 py-2">Email</th>
-                            <th class="border px-4 py-2">Phone</th>
-                            <th class="border px-4 py-2">Username</th>
-                            <th class="border px-4 py-2">Birthday</th>
-                            <th class="border px-4 py-2">Referral Code</th>
-                            <th class="border px-4 py-2">Sign In</th>
-                            <th class="border px-4 py-2">Active</th>
-                            <th class="border px-4 py-2">Actions</th>
+                        <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                            <th class="px-4 py-2">Name</th>
+                            <th class="px-4 py-2">Email</th>
+                            <th class="px-4 py-2">Phone</th>
+                            <th class="px-4 py-2">Username</th>
+                            <th class="px-4 py-2">Birthday</th>
+                            <th class="px-4 py-2">Referral Code</th>
+                            <th class="px-4 py-2">Sign In</th>
+                            <th class="px-4 py-2">Active</th>
+                            <th class="px-4 py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($customers as $c)
-                            <tr class="text-sm">
-                                <td class="border px-4 py-2">{{ $c->name }}</td>
-                                <td class="border px-4 py-2">{{ $c->email }}</td>
-                                <td class="border px-4 py-2">{{ $c->phone_country_code }}{{ $c->phone_number }}</td>
-                                <td class="border px-4 py-2">{{ $c->username }}</td>
-                                <td class="border px-4 py-2">{{ $c->birthday }}</td>
-                                <td class="border px-4 py-2">{{ $c->referral_code }}</td>
-                                <td class="border px-4 py-2">{{ ucfirst($c->sign_in) }}</td>
-                                <td class="border px-4 py-2">
+                            <tr class="text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                <td class="px-4 py-2">{{ $c->name }}</td>
+                                <td class="px-4 py-2">{{ $c->email }}</td>
+                                <td class="px-4 py-2">{{ $c->phone_country_code }}{{ $c->phone_number }}</td>
+                                <td class="px-4 py-2">{{ $c->username }}</td>
+                                <td class="px-4 py-2">{{ $c->birthday }}</td>
+                                <td class="px-4 py-2">{{ $c->referral_code }}</td>
+                                <td class="px-4 py-2">{{ ucfirst($c->sign_in) }}</td>
+                                <td class="px-4 py-2">
                                     <x-status-badge :status="$c->status" />
                                 </td>
-                                <td class="border px-4 py-2">
+                                <td class="px-4 py-2">
                                     <!-- View Button -->
                                     <a href="{{ route('customers.show', $c) }}" 
                                         class="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800"
@@ -141,7 +141,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                 <td colspan="9" class="px-6 py-12 text-center">
                                     <div class="flex flex-col items-center justify-center">
                                         <p class="text-gray-500 text-lg font-medium">

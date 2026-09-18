@@ -19,19 +19,19 @@
                 <div class="p-6 bg-white border-b border-gray-200">
                     <!-- Permissions Table -->
 					<div class="overflow-x-auto">
-                        <table class="min-w-full border-collapse border">
+                        <table class="min-w-full">
                             <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="border px-4 py-2">Brand</th>
-                                    <th class="border px-4 py-2 w-24">Logo</th>
-                                    <th class="border px-4 py-2">Actions</th>
+                                <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                                    <th class="px-4 py-2">Brand</th>
+                                    <th class="px-4 py-2 w-24">Logo</th>
+                                    <th class="px-4 py-2">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($brands as $brand)
-                                    <tr>
-                                        <td class="border px-4 py-2">{{ $brand->name }}</td>
-                                        <td class="border px-4 py-2 text-center">
+                                    <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                        <td class="px-4 py-2">{{ $brand->name }}</td>
+                                        <td class="px-4 py-2 text-center">
                                             @if($brand->logo) <img src="{{ asset('storage/' . $brand->logo) }}" 
                                                      alt="{{ $brand->name }}" 
                                                      class="w-12 h-12 object-contain mx-auto rounded border">
@@ -39,7 +39,7 @@
                                                 <span class="text-xs text-gray-400 italic">No Logo</span>
                                             @endif
                                         </td>
-                                        <td class="border px-4 py-2">
+                                        <td class="px-4 py-2">
                                             <!-- Edit Button -->
                                             <a href="{{ route('brands.edit', $brand) }}" 
                                                 class="inline-flex items-center px-2 py-1 text-indigo-500 hover:text-indigo-800"
@@ -90,7 +90,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr>
+                                    <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                         <td colspan="3" class="px-6 py-12 text-center">
                                             <div class="flex flex-col items-center justify-center">
                                                 <p class="text-gray-500 text-lg font-medium">

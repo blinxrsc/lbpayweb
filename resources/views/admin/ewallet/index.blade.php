@@ -10,24 +10,24 @@
             <!-- Filters -->
                 <div class="bg-white shadow-sm rounded-lg overflow-x-auto">
                     {{-- User Table --}}
-                    <table class="min-w-full border-collapse border">
+                    <table class="min-w-full">
                         <thead>
-                            <tr class="bg-gray-100">
-                                <th class="border px-4 py-2">Customer</th>
-                                <th class="border px-4 py-2">Email</th>
-                                <th class="border px-4 py-2">Credit Balance</th>
-                                <th class="border px-4 py-2">Bonus Balance</th>
-                                <th class="border px-4 py-2">Actions</th>
+                            <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                                <th class="px-4 py-2">Customer</th>
+                                <th class="px-4 py-2">Email</th>
+                                <th class="px-4 py-2">Credit Balance</th>
+                                <th class="px-4 py-2">Bonus Balance</th>
+                                <th class="px-4 py-2">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($customers as $customer)
-                            <tr>
-                                <td class="border px-4 py-2">{{ $customer->name }}</td>
-                                <td class="border px-4 py-2">{{ $customer->email }}</td>
-                                <td class="border px-4 py-2">RM {{ number_format(optional($customer->ewalletAccount)->credit_balance ?? 0, 2) }}</td>
-                                <td class="border px-4 py-2">RM {{ number_format(optional($customer->ewalletAccount)->bonus_balance ?? 0, 2) }}</td>
-                                <td class="border px-4 py-2">
+                            <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                <td class="px-4 py-2">{{ $customer->name }}</td>
+                                <td class="px-4 py-2">{{ $customer->email }}</td>
+                                <td class="px-4 py-2">RM {{ number_format(optional($customer->ewalletAccount)->credit_balance ?? 0, 2) }}</td>
+                                <td class="px-4 py-2">RM {{ number_format(optional($customer->ewalletAccount)->bonus_balance ?? 0, 2) }}</td>
+                                <td class="px-4 py-2">
                                     <a href="{{ route('admin.ewallet.adjust', $customer->id) }}"
                                         class="inline-flex items-center px-2 py-1 text-indigo-600 hover:text-indigo-800"
                                         title="Adjust"
@@ -43,7 +43,7 @@
                                 </td>
                             </tr>
                             @empty
-                                <tr>
+                                <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                     <td colspan="5" class="px-6 py-12 text-center">
                                         <div class="flex flex-col items-center justify-center">
                                             <p class="text-gray-500 text-lg font-medium">

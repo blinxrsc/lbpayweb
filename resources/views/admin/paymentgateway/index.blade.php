@@ -79,31 +79,31 @@
                     </form>
             <!-- Transactions Table -->
             <div class="bg-white shadow-sm sm:rounded-lg p-6 overflow-x-auto">
-                <table class="min-w-full border-collapse border">
+                <table class="min-w-full">
                     <thead>
-                        <tr class="bg-gray-100 text-sm">
-                            <th class="border px-4 py-2">Transaction Time</th>
-                            <th class="border px-4 py-2">User Email</th>
-                            <th class="border px-4 py-2">User Phone</th>
-                            <th class="border px-4 py-2">Provider</th>
-                            <th class="border px-4 py-2">Trans #</th>
-                            <th class="border px-4 py-2">Order #</th>
-                            <th class="border px-4 py-2">Amount</th>
-                            <th class="border px-4 py-2">Status</th>
-                            <th class="border px-4 py-2">Actions</th>
+                        <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                            <th class="px-4 py-2">Transaction Time</th>
+                            <th class="px-4 py-2">User Email</th>
+                            <th class="px-4 py-2">User Phone</th>
+                            <th class="px-4 py-2">Provider</th>
+                            <th class="px-4 py-2">Trans #</th>
+                            <th class="px-4 py-2">Order #</th>
+                            <th class="px-4 py-2">Amount</th>
+                            <th class="px-4 py-2">Status</th>
+                            <th class="px-4 py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($transactions as $tx)
-                            <tr class="text-sm">
-                                <td class="border px-4 py-2">{{ $tx->updated_at }}</td>
-                                <td class="border px-4 py-2">{{ $tx->customer->email }}</td>
-                                <td class="border px-4 py-2">{{ $tx->customer->phone_country_code }}{{ $tx->customer->phone_number }}</td>
-                                <td class="border px-4 py-2">{{ ucfirst($tx->provider) }}</td>
-                                <td class="border px-4 py-2">{{ $tx->provider_txn_id }}</td>
-                                <td class="border px-4 py-2">{{ $tx->order_id }}</td>
-                                <td class="border px-4 py-2">RM {{ number_format($tx->amount, 2) }}</td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm" 
+                            <tr class="text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                <td class="px-4 py-2">{{ $tx->updated_at }}</td>
+                                <td class="px-4 py-2">{{ $tx->customer->email }}</td>
+                                <td class="px-4 py-2">{{ $tx->customer->phone_country_code }}{{ $tx->customer->phone_number }}</td>
+                                <td class="px-4 py-2">{{ ucfirst($tx->provider) }}</td>
+                                <td class="px-4 py-2">{{ $tx->provider_txn_id }}</td>
+                                <td class="px-4 py-2">{{ $tx->order_id }}</td>
+                                <td class="px-4 py-2">RM {{ number_format($tx->amount, 2) }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm" 
                                     x-data="{ 
                                         status: '{{ $tx->status }}',
                                         statusClasses: {
@@ -122,7 +122,7 @@
                                     >
                                     </span>
                                 </td>
-                                <td class="border px-4 py-2">
+                                <td class="px-4 py-2">
                                     <!-- New View button -->
                                     <a href="{{ route('admin.paymentgateway.show', $tx) }}" class="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800"
                                         title="View Details"
@@ -144,7 +144,7 @@
                                 </td>
                             </tr>
                         @empty
-                        <tr>
+                        <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                             <td colspan="9" class="px-6 py-12 text-center">
                                 <div class="flex flex-col items-center justify-center">
                                     <p class="text-gray-500 text-lg font-medium">
@@ -158,7 +158,7 @@
                     </tbody>
                     @if($transactions->count() > 0)
                     <tfoot class="bg-blue-50/50 font-bold border-t-2 border-blue-100">
-                        <tr>
+                        <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                             <td colspan="6" class="px-6 py-4 text-right text-sm text-blue-900">Totals:</td>
                             <td class="px-6 py-4 text-sm text-blue-900">RM {{ number_format($summary['total_amount'], 2) }}</td>
                             <td colspan="3"></td>

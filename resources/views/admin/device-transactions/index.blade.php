@@ -78,32 +78,32 @@
             </form>
             <div class="bg-white shadow-sm sm:rounded-lg p-6 overflow-x-auto">
                 <!-- Transactions Table -->
-                <table class="min-w-full border-collapse border">
-                    <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
-                        <tr class="bg-gray-100">
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Date Time</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Customer Email</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Customer Phone</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Outlet</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Machine</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Provider</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Trans #</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Order #</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Amount</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap">Status</th>
-                            <th class="border px-4 py-2 text-sm tracking-wider whitespace-nowrap sticky right-0 bg-gray-100">Actions</th>
+                <table class="min-w-full">
+                    <thead class="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                        <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Date Time</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Customer Email</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Customer Phone</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Outlet</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Machine</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Provider</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Trans #</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Order #</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Amount</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap">Status</th>
+                            <th class="px-4 py-2 text-sm tracking-wider whitespace-nowrap sticky right-0 bg-gray-50">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($transactions as $tx)
-                            <tr>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                            <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
                                     {{ $tx->updated_at ? \Carbon\Carbon::parse($tx->updated_at)->format('Y-m-d H:i') : $tx->updated_at->format('Y-m-d H:i') }}
                                 </td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->customer->email }}</td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->customer->phone_country_code }}{{ $tx->customer->phone_number }}</td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->deviceOutlet->outlet->outlet_name }}</td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->customer->email }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->customer->phone_country_code }}{{ $tx->customer->phone_number }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->deviceOutlet->outlet->outlet_name }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
                                     <span class="px-2 py-1 rounded-full text-xs font-semibold
                                                 {{ $tx->deviceOutlet->machine_type == 'Washer' ? 'bg-blue-600 text-white' : '' }}
                                                 {{ $tx->deviceOutlet->machine_typee == 'Dryer' ? 'bg-amber-600 text-white' : '' }}
@@ -113,11 +113,11 @@
                                                 {{ $tx->deviceOutlet->machine_type }} {{ $tx->deviceOutlet->machine_num }}
                                             </span>
                                 </td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ ucfirst($tx->provider) }}</td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->provider_txn_id }}</td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->order_id }}</td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm text-gray-600">RM {{ number_format($tx->amount, 2) }}</td>
-                                <td class="border px-4 py-2 whitespace-nowrap text-sm" 
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ ucfirst($tx->provider) }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->provider_txn_id }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->order_id }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">RM {{ number_format($tx->amount, 2) }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm" 
                                     x-data="{ 
                                         status: '{{ $tx->status }}',
                                         statusClasses: {
@@ -136,7 +136,7 @@
                                     >
                                     </span>
                                 </td>
-                                <td class="border px-4 py-2 sticky right-0 bg-white">
+                                <td class="px-4 py-2 sticky right-0 bg-white">
                                     <!-- New View button -->
                                     <a href="{{ route('admin.device-transactions.show', $tx) }}" 
                                         class="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800"
@@ -171,7 +171,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                 <td colspan="11" class="px-6 py-12 text-center">
                                     <div class="flex flex-col items-center justify-center">
                                         <p class="text-gray-500 text-lg font-medium">

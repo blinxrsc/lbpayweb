@@ -42,6 +42,18 @@ class DeviceOutletController extends Controller
             $query->whereRaw('LOWER(status) = ?', [strtolower($request->status)]);
         }
 
+        // Metric cards: respect the outlet-scoping applied above, but not
+        // the ephemeral brand/status/outlet_type/outlet_name filters below —
+        // these should read as "your whole scoped fleet", stable regardless
+        // of whatever filter is currently applied to the table.
+        $scopedCountQuery = DeviceOutlet::query();
+        if ($ids !== null) {
+            $scopedCountQuery->whereIn('outlet_id', $ids);
+        }
+        $totalCount = $scopedCountQuery->count();
+        $onlineCount = (clone $scopedCountQuery)->where('status', 'online')->count();
+        $faultyCount = (clone $scopedCountQuery)->where('status', 'faulty')->count();
+
         if ($request->filled('outlet_type')) {
             $query->whereHas('outlet', function($q) use ($request) {
                 $q->where('type', $request->outlet_type);
@@ -56,7 +68,7 @@ class DeviceOutletController extends Controller
         $brands = Brand::all();
         $statuses = TypeStatus::all();
         $types = TypeOutlet::all();
-        return view('device_outlets.index', compact('transaction','brands','statuses','types'));
+        return view('device_outlets.index', compact('transaction','brands','statuses','types','totalCount','onlineCount','faultyCount'));
     }
 
     /**

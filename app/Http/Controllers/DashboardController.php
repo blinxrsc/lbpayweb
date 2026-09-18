@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\HealthStatus;
 use App\Models\Outlet;
 use App\Models\DeviceOutlet;
+use App\Models\DeviceTransaction;
 use App\Models\TypeOutlet;
 use App\Models\TypeStatus;
 use Illuminate\Support\Facades\DB;
@@ -86,6 +87,20 @@ class DashboardController extends Controller
                                 
                 'byState'   => Outlet::select('province as label', DB::raw('count(*) as total'))
                             ->groupBy('province')->get(),
+
+                // Metric cards: revenue respects the same from/to filter as
+                // everything else on this page; open faults doesn't (a
+                // stuck machine is a stuck machine regardless of date range).
+                'revenueInRange' => DeviceTransaction::whereIn('status', [
+                            DeviceTransaction::STATUS_PAID,
+                            DeviceTransaction::STATUS_COMPLETED,
+                            DeviceTransaction::STATUS_ACTIVATED,
+                        ])
+                        ->when($start, fn($q) => $q->where('created_at', '>=', Carbon::parse($start)->startOfDay()))
+                        ->when($end, fn($q) => $q->where('created_at', '<=', Carbon::parse($end)->endOfDay()))
+                        ->sum('amount'),
+                'openFaults' => DeviceOutlet::where('status', 'faulty')->count(),
+                'totalOutlets' => Outlet::count(),
             ];
         });
 

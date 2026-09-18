@@ -42,7 +42,7 @@
 
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="border-b bg-gray-50">
+                        <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
                             <th class="p-3">Title</th>
                             <th class="p-3">Version</th>
                             <th class="p-3">Status</th>
@@ -51,13 +51,11 @@
                     </thead>
                     <tbody>
                         @forelse($terms as $term)
-                        <tr class="border-b hover:bg-gray-50">
+                        <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                             <td class="p-3 font-semibold">{{ $term->title }}</td>
                             <td class="p-3">v{{ $term->version }}</td>
                             <td class="p-3">
-                                <span class="{{ $term->is_active ? 'text-green-600' : 'text-red-600' }}">
-                                    {{ $term->is_active ? 'Active' : 'Disabled' }}
-                                </span>
+                                <x-status-badge :status="$term->is_active ? 'Active' : 'Disabled'" />
                             </td>
                             <td class="p-3">
                                 <button type="button" 

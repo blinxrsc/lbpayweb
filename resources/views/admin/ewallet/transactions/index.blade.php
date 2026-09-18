@@ -84,48 +84,48 @@
         <!-- Transactions Table -->
         <div class="overflow-x-auto rounded-lg border border-gray-200">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                <thead class="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Date
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Outlet
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Customer
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Machine ID
                         </th>
-                        <th scope="col" class="px-8 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-8 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Device SN
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Type
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Amount
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Bonus
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Deduct Amount
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Deduct Bonus
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Balance
                         </th>
-                        <th scope="col" class="px-8 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-8 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Reference
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Admin
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-sm font-bold tracking-wider whitespace-nowrap">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide whitespace-nowrap">
                             Reason
                         </th>
                     </tr>

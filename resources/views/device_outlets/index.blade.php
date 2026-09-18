@@ -6,6 +6,20 @@
     </x-slot>
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="bg-white p-4 rounded-lg border border-gray-200">
+                    <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Devices Online</h4>
+                    <p class="text-2xl font-semibold text-gray-900 mt-1">{{ $onlineCount }} <span class="text-sm font-normal text-gray-400">/ {{ $totalCount }}</span></p>
+                </div>
+                <div class="bg-white p-4 rounded-lg border border-gray-200">
+                    <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Machines</h4>
+                    <p class="text-2xl font-semibold text-gray-900 mt-1">{{ $totalCount }}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg border border-gray-200">
+                    <h4 class="text-xs font-semibold uppercase tracking-wide {{ $faultyCount > 0 ? 'text-red-500' : 'text-gray-500' }}">Open Faults</h4>
+                    <p class="text-2xl font-semibold mt-1 {{ $faultyCount > 0 ? 'text-red-600' : 'text-gray-900' }}">{{ $faultyCount }}</p>
+                </div>
+            </div>
             <div class="flex items-center justify-between gap-x-2">
                 <!-- Filter Form -->
                 <form method="GET" action="{{ route('device_outlets.index') }}" class="mb-4 flex space-x-2">
@@ -58,28 +72,28 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 bg-white border-b border-gray-200">
                     <!-- Transactions Table -->
-                    <table class="min-w-full border-collapse border">
+                    <table class="min-w-full">
                         <thead>
-                            <tr class="bg-gray-100 text-sm">
-                                <th class="border px-4 py-2">Outlet</th>
-                                <th class="border px-4 py-2">Device SN</th>
-                                <th class="border px-4 py-2">Brand</th>
-                                <th class="border px-4 py-2">Ownership</th>
-                                <th class="border px-4 py-2">Machine #</th>
-                                <th class="border px-4 py-2">Machine Name</th>
-                                <th class="border px-4 py-2">Status</th>
-                                <th class="border px-4 py-2">Availability</th>
-                                <th class="border px-4 py-2">Actions</th>
+                            <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                                <th class="px-4 py-2">Outlet</th>
+                                <th class="px-4 py-2">Device SN</th>
+                                <th class="px-4 py-2">Brand</th>
+                                <th class="px-4 py-2">Ownership</th>
+                                <th class="px-4 py-2">Machine #</th>
+                                <th class="px-4 py-2">Machine Name</th>
+                                <th class="px-4 py-2">Status</th>
+                                <th class="px-4 py-2">Availability</th>
+                                <th class="px-4 py-2 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($transaction as $tx)
-                                <tr class="text-sm">
-                                    <td class="border px-4 py-2">{{ optional($tx->outlet)->outlet_name }}</td>
-                                    <td class="border px-4 py-2">
+                                <tr class="text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                    <td class="px-4 py-2">{{ optional($tx->outlet)->outlet_name }}</td>
+                                    <td class="px-4 py-2">
                                         <button
                                             type="button"
-                                            class="px-2 py-1 rounded bg-blue-200 text-blue-800"
+                                            class="px-2 py-1 rounded bg-blue-100 text-blue-800"
                                             x-data
                                             x-on:click="$dispatch('open-modal', 'show-qr-{{ $tx->device_serial_number }}')"
                                         >{{ $tx->device_serial_number }}</button>
@@ -105,21 +119,21 @@
                                             </div>
                                         </x-modal>
                                     </td>
-                                    <td class="border px-4 py-2">{{ optional(optional($tx->outlet)->brand)->name }}</td>
-                                    <td class="border px-4 py-2">
+                                    <td class="px-4 py-2">{{ optional(optional($tx->outlet)->brand)->name }}</td>
+                                    <td class="px-4 py-2">
                                         <x-status-badge :status="$tx->outlet->type->name" /> 
                                     </td>
-                                    <td class="border px-4 py-2">
+                                    <td class="px-4 py-2">
                                         <x-status-badge :status="$tx->machine_type" /> # <strong>{{ $tx->machine_num }}</strong>
                                     </td>
-                                    <td class="border px-4 py-2">{{ $tx->machine_name }}</td>
-                                    <td class="border px-4 py-2">
+                                    <td class="px-4 py-2">{{ $tx->machine_name }}</td>
+                                    <td class="px-4 py-2">
                                         <x-status-badge :status="$tx->status" /> 
                                     </td>
-                                    <td class="border px-4 py-2">
+                                    <td class="px-4 py-2">
                                         <x-status-badge :status="$tx->availability ? 'Available' : 'Busy'" /> 
                                     </td>
-                                    <td class="border px-4 py-2">
+                                    <td class="px-4 py-2 text-right">
                                         <!-- View Button -->
                                         <a href="{{ route('device_outlets.show', $tx) }}" 
                                             class="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800"

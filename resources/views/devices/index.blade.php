@@ -37,34 +37,34 @@
                 <div class="p-6 bg-white border-b border-gray-200">
                     <!-- Brands Table -->
                     <div class="overflow-x-auto">
-                        <table class="min-w-full border-collapse border">
+                        <table class="min-w-full">
                             <thead>
-                                <tr class="bg-gray-100 text-sm">
-                                    <th class="border px-4 py-2">Serial Number</th>
-                                    <th class="border px-4 py-2">Model</th>
-                                    <th class="border px-4 py-2">Version #</th>
-                                    <th class="border px-4 py-2">Status</th>
-                                    <th class="border px-4 py-2">Order #</th>
-                                    <th class="border px-4 py-2">Purchased Date</th>
-                                    <th class="border px-4 py-2">Supplier</th>
-                                    <th class="border px-4 py-2">Cost</th>
-                                    <th class="border px-4 py-2">Actions</th>
+                                <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                                    <th class="px-4 py-2">Serial Number</th>
+                                    <th class="px-4 py-2">Model</th>
+                                    <th class="px-4 py-2">Version #</th>
+                                    <th class="px-4 py-2">Status</th>
+                                    <th class="px-4 py-2">Order #</th>
+                                    <th class="px-4 py-2">Purchased Date</th>
+                                    <th class="px-4 py-2">Supplier</th>
+                                    <th class="px-4 py-2">Cost</th>
+                                    <th class="px-4 py-2">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($devices as $device)
-                                    <tr class="text-sm">
-                                        <td class="border px-4 py-2"><span class="px-2 py-1 rounded bg-blue-200 text-blue-800">{{ $device->serial_number }}</span></td>
-                                        <td class="border px-4 py-2">{{ $device->model }}</td>
-                                        <td class="border px-4 py-2">{{ $device->version }}</td>
-                                        <td class="border px-4 py-2">
+                                    <tr class="text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                        <td class="px-4 py-2"><span class="px-2 py-1 rounded bg-blue-200 text-blue-800">{{ $device->serial_number }}</span></td>
+                                        <td class="px-4 py-2">{{ $device->model }}</td>
+                                        <td class="px-4 py-2">{{ $device->version }}</td>
+                                        <td class="px-4 py-2">
                                             <x-status-badge :status="$device->status" />
                                         </td>
-                                        <td class="border px-4 py-2">{{ $device->order_number }}</td>
-                                        <td class="border px-4 py-2">{{ $device->purchase_date }}</td>
-                                        <td class="border px-4 py-2">{{ optional($device->supplier)->supplier_name }}</td>
-                                        <td class="border px-4 py-2">{{ $device->purchase_cost }}</td>
-                                        <td class="border px-4 py-2">
+                                        <td class="px-4 py-2">{{ $device->order_number }}</td>
+                                        <td class="px-4 py-2">{{ $device->purchase_date }}</td>
+                                        <td class="px-4 py-2">{{ optional($device->supplier)->supplier_name }}</td>
+                                        <td class="px-4 py-2">{{ $device->purchase_cost }}</td>
+                                        <td class="px-4 py-2">
                                             <!-- Show Button -->
                                             <a href={{ route('devices.show', $device) }} 
                                                 class="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800"
@@ -126,7 +126,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr>
+                                    <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                         <td colspan="9" class="px-6 py-12 text-center">
                                             <div class="flex flex-col items-center justify-center">
                                                 <p class="text-gray-500 text-lg font-medium">

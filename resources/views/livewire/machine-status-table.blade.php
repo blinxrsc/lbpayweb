@@ -118,8 +118,17 @@ new class extends Component {
             'machines' => $machines,
             'allFirmwares' => Firmware::latest()->get(),
             // Provide defaults so the view doesn't crash if no machines exist
-            'outletName' => $firstMachine?->outlet?->name ?? 'No Outlet Found',
+            'outletName' => $firstMachine?->outlet?->outlet_name ?? 'No Outlet Found',
             'outletId'   => $firstMachine?->outlet_id,
+            // Fleet-wide counts for the metric cards, not scoped to the
+            // current page of the pagination. Uses the DB status column
+            // rather than a live Redis check per device — cheap, and
+            // trustworthy within one heartbeat interval since the status
+            // column now gets corrected on every reconnect (see
+            // ProcessMachineMessage fix).
+            'totalMachineCount' => DeviceOutlet::count(),
+            'onlineMachineCount' => DeviceOutlet::where('status', 'online')->count(),
+            'openFaultCount' => DeviceOutlet::where('status', 'faulty')->count(),
         ];
     }
 };
@@ -143,35 +152,46 @@ new class extends Component {
                     @endif
                 </div>
 
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Devices Online</h4>
+                        <p class="text-2xl font-semibold text-gray-900 mt-1">{{ $onlineMachineCount }} <span class="text-sm font-normal text-gray-400">/ {{ $totalMachineCount }}</span></p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Machines</h4>
+                        <p class="text-2xl font-semibold text-gray-900 mt-1">{{ $totalMachineCount }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h4 class="text-xs font-semibold uppercase tracking-wide {{ $openFaultCount > 0 ? 'text-red-500' : 'text-gray-500' }}">Open Faults</h4>
+                        <p class="text-2xl font-semibold mt-1 {{ $openFaultCount > 0 ? 'text-red-600' : 'text-gray-900' }}">{{ $openFaultCount }}</p>
+                    </div>
+                </div>
+
                 <table class="min-w-full border text-sm">
                     <thead>
-                        <tr>
-                            <th>Serial Number</th>
-                            <th>Outlet</th>
-                            <th>Machine</th>
-                            <th>Status</th>
-                            <th>Last Seen</th>
-                            <th>Last Reboot</th>
-                            <th>Current Coins</th>
-                            <th>Actions</th>
+                        <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-50 border-b border-gray-200">
+                            <th class="p-2">Serial Number</th>
+                            <th class="p-2">Outlet</th>
+                            <th class="p-2">Machine</th>
+                            <th class="p-2">Status</th>
+                            <th class="p-2">Last Seen</th>
+                            <th class="p-2">Last Reboot</th>
+                            <th class="p-2 text-right">Current Coins</th>
+                            <th class="p-2 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($machines as $machine)
-                        <tr class="border-b items-center" wire:key="machine-row-{{ $machine->device_serial_number }}">
+                        <tr class="border-b border-gray-100 items-center hover:bg-gray-50" wire:key="machine-row-{{ $machine->device_serial_number }}">
                             <td class="p-2 font-mono text-xs">{{ $machine->device_serial_number }}</td>
                             <td class="p-2">{{ $machine->outlet->outlet_name }}</td>
                             <td class="p-2">{{ $machine->machine_type }} #{{ $machine->machine_num }}</td>
                             <td class="p-2">
-                                @if($machine->is_online)
-                                    <span class="text-green-600 font-bold">● Online </span>
-                                @else
-                                    <span class="text-red-500">○ Offline</span>
-                                @endif
+                                <x-status-badge :status="$machine->is_online ? 'online' : 'offline'" />
                             </td>
                             <td class="p-2 text-xs text-gray-500">{{ \Carbon\Carbon::parse($machine->last_seen_at)->diffForHumans() }}</td>
                             <td class="p-2 text-xs text-gray-500">{{ \Carbon\Carbon::parse($machine->last_reboot_at)->diffForHumans() }}</td>
-                            <td class="p-2">{{ $machine->current_coins }}</td>
+                            <td class="p-2 text-right font-medium text-gray-900">{{ $machine->current_coins }}</td>
                             <td class="p-2 flex justify-end gap-1">
                                 
 
