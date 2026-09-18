@@ -11,6 +11,7 @@ use App\Models\DeviceAuditLog;
 use App\Models\DeviceMovementLog;
 use App\Models\DeviceOutlet;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Jobs\SendMqttCommand;
 
 class DeviceController extends Controller
 {
@@ -130,17 +131,6 @@ class DeviceController extends Controller
             'supplier_id'   => 'required|exists:suppliers,id',
             //'outlet_id'     => 'nullable|exists:outlets,id',
             'purchase_cost' => 'nullable|numeric|min:0.00',
-            'washer_cold_price' => 'required|numeric|min:0',
-            'washer_warm_price' => 'required|numeric|min:0',
-            'washer_hot_price'  => 'required|numeric|min:0',
-            'dryer_low_price'   => 'required|numeric|min:0',
-            'dryer_med_price'   => 'required|numeric|min:0',
-            'dryer_hi_price'    => 'required|numeric|min:0',
-            'pulse_price'       => 'required|numeric|min:0',
-            'pulse_add_min'     => 'required|integer|min:0',
-            'pulse_width'       => 'required|integer|min:0',
-            'pulse_delay'       => 'required|integer|min:0',
-            'coin_signal_width' => 'required|integer|min:0',
             //'status'          => 'required|in:assigned,unassigned',
         ]);
         // Determine new status
@@ -316,7 +306,19 @@ class DeviceController extends Controller
             'new_value' => $log->old_value,
         ]);
 
-        return redirect()->route('devices.show', $device)
+        // The Audit Trail tab now lives on the device_outlets parameters page.
+        // If this device is currently assigned to an outlet, push the
+        // rolled-back value straight to the ESP32 too — a rollback of a
+        // pulse/coin-signal field should take effect immediately, same as a
+        // normal save would.
+        $deviceOutlet = DeviceOutlet::where('device_serial_number', $device->serial_number)->first();
+        if ($deviceOutlet) {
+            SendMqttCommand::dispatch($device->serial_number, 'CONFIG', [], auth()->id());
+            return redirect()->route('device_outlets.parameters', $deviceOutlet)
+                ->with('success', "Rolled back {$log->field} to previous value and pushed to the device.");
+        }
+
+        return redirect()->route('devices.index')
             ->with('success', "Rolled back {$log->field} to previous value.");
     }
     

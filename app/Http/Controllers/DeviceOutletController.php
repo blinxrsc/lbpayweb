@@ -9,6 +9,8 @@ use App\Models\Brand;
 use App\Models\TypeStatus;
 use App\Models\TypeOutlet;
 use App\Models\DeviceMovementLog;
+use App\Models\DeviceAuditLog;
+use App\Jobs\SendMqttCommand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -280,6 +282,88 @@ class DeviceOutletController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Device Parameters + Audit Trail for the device currently assigned to
+     * this outlet slot. Relocated here (from devices.edit) so it's reached
+     * alongside the outlet/machine context it actually affects, instead of
+     * a separate "Manage Device" page that's now purchase/assignment only.
+     */
+    public function parameters(DeviceOutlet $deviceOutlet)
+    {
+        abort_unless(auth()->user()->canAccessOutlet($deviceOutlet->outlet_id), 403);
+
+        $device = Device::where('serial_number', $deviceOutlet->device_serial_number)->firstOrFail();
+        $auditLogs = $device->auditLogs()->with('user')->latest()->get();
+
+        return view('device_outlets.parameters', compact('deviceOutlet', 'device', 'auditLogs'));
+    }
+
+    public function updateParameters(Request $request, DeviceOutlet $deviceOutlet)
+    {
+        abort_unless(auth()->user()->canAccessOutlet($deviceOutlet->outlet_id), 403);
+
+        $device = Device::where('serial_number', $deviceOutlet->device_serial_number)->firstOrFail();
+
+        $validated = $request->validate([
+            'washer_cold_price' => 'required|numeric|min:0',
+            'washer_warm_price' => 'required|numeric|min:0',
+            'washer_hot_price'  => 'required|numeric|min:0',
+            'dryer_low_price'   => 'required|numeric|min:0',
+            'dryer_med_price'   => 'required|numeric|min:0',
+            'dryer_hi_price'    => 'required|numeric|min:0',
+            'pulse_price'       => 'required|numeric|min:0.01',
+            'pulse_add_min'     => 'required|integer|min:0',
+            'pulse_width'       => 'required|integer|min:1',
+            'pulse_delay'       => 'required|integer|min:1',
+            'coin_signal_width' => 'required|integer|min:1',
+            // New fields:
+            'max_vend_price'           => 'nullable|numeric|min:0',
+            'pulse_pull_up'             => 'required|boolean',
+            'coin_signal_idle_high'     => 'required|boolean',
+            'coin_signal_sensitivity'   => 'required|integer|min:1',
+        ]);
+
+        foreach ($validated as $field => $newValue) {
+            $oldValue = $device->$field;
+            if ($oldValue != $newValue) {
+                DeviceAuditLog::create([
+                    'device_id' => $device->id,
+                    'user_id'   => auth()->id(),
+                    'field'     => $field,
+                    'old_value' => $oldValue,
+                    'new_value' => $newValue,
+                ]);
+            }
+        }
+
+        $device->update($validated);
+
+        // Push the pulse/coin-signal subset straight to the ESP32. max_vend_price
+        // is NOT included — it's a backend price cap (enforced in
+        // TechnicianDeviceController::start() and the dashboard's remoteStart()),
+        // the firmware has no use for it.
+        SendMqttCommand::dispatch($deviceOutlet->device_serial_number, 'CONFIG', [], auth()->id());
+
+        return redirect()->route('device_outlets.parameters', $deviceOutlet)
+            ->with('success', 'Parameters saved and pushed to the device.');
+    }
+
+    /**
+     * Re-push the currently-saved parameters without changing anything —
+     * useful after a device reboot/replacement, or if it was offline the
+     * last time parameters were saved (CONFIG is retained, but an explicit
+     * resend still gives the technician a clear "I just did this" action).
+     */
+    public function sendConfig(DeviceOutlet $deviceOutlet)
+    {
+        abort_unless(auth()->user()->canAccessOutlet($deviceOutlet->outlet_id), 403);
+
+        SendMqttCommand::dispatch($deviceOutlet->device_serial_number, 'CONFIG', [], auth()->id());
+
+        return redirect()->route('device_outlets.parameters', $deviceOutlet)
+            ->with('success', 'Settings sent to the device.');
     }
 
 }

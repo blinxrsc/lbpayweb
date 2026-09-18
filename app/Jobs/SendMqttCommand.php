@@ -45,7 +45,7 @@ class SendMqttCommand implements ShouldQueue
 
         // 1. Prepare the MQTT Message
         if ($this->action === 'REBOOT') {
-            $message = 'REBOOT';
+            $message = json_encode(['action' => 'REBOOT']);
 
             // Mark the machine as "Rebooting..." in the DB
             DeviceOutlet::where('device_serial_number', $this->serial)
@@ -92,10 +92,18 @@ class SendMqttCommand implements ShouldQueue
             }
 
             $message = json_encode([
-                'action'               => 'CONFIG',
-                'pulse_width_ms'       => $device->pulse_width,
-                'pulse_delay_ms'       => $device->pulse_delay,
-                'coin_signal_width_ms' => $device->coin_signal_width,
+                'action'                   => 'CONFIG',
+                'pulse_width_ms'           => $device->pulse_width,
+                'pulse_delay_ms'           => $device->pulse_delay,
+                'coin_signal_width_ms'     => $device->coin_signal_width,
+                // DB column names follow what's shown in the admin UI
+                // ("Pulse Pull Down or Up", "Coin Signal Idle Level"); the
+                // JSON keys below match the firmware's PulseConfig field names.
+                'coin_pull_up'             => (bool) $device->pulse_pull_up,
+                'coin_idle_high'           => (bool) $device->coin_signal_idle_high,
+                'coin_signal_sensitivity_ms' => $device->coin_signal_sensitivity,
+                // max_vend_price is intentionally NOT included — it's a
+                // backend price cap, the firmware has no use for it.
             ]);
             $retain = true;
         } elseif ($this->action === 'UPDATE') {

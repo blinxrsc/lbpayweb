@@ -161,6 +161,12 @@ Route::middleware(['auth:web'])->group(function () {
     });
     Route::middleware('can:devices_outlet.edit')->group(function () {
         Route::resource('device_outlets', DeviceOutletController::class)->only(['edit', 'update']);
+        // Device Parameters + Audit Trail, relocated here from devices.edit —
+        // see DeviceOutletController@parameters.
+        Route::get('/device_outlets/{deviceOutlet}/parameters', [DeviceOutletController::class, 'parameters'])->name('device_outlets.parameters');
+        Route::put('/device_outlets/{deviceOutlet}/parameters', [DeviceOutletController::class, 'updateParameters'])->name('device_outlets.parameters.update');
+        Route::post('/device_outlets/{deviceOutlet}/send-config', [DeviceOutletController::class, 'sendConfig'])->name('device_outlets.sendConfig');
+        Route::put('/devices/{log}/rollback', [DeviceController::class, 'rollback'])->name('devices.rollback');
     });
     Route::middleware('can:devices_outlet.delete')->group(function () {
         Route::resource('device_outlets', DeviceOutletController::class)->only(['destroy']);
@@ -221,7 +227,6 @@ Route::middleware(['auth:web'])->group(function () {
         // Devices
         Route::match(['get', 'post'], '/devices/CSV', [DeviceController::class, 'CSV'])->name('devices.CSV');
         Route::post('/devices/import', [DeviceController::class, 'confirmImport'])->name('devices.import.confirm');
-        Route::put('/devices/{log}/rollback', [DeviceController::class, 'rollback'])->name('devices.rollback');
         Route::post('/devices/faulty', [DeviceController::class, 'markFaulty'])->name('devices.markFaulty');
         Route::post('/devices/repair', [DeviceController::class, 'markRepair'])->name('devices.markRepair');
         Route::post('/devices/completed', [DeviceController::class, 'repairCompleted'])->name('devices.repairCompleted');

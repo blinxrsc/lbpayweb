@@ -17,6 +17,7 @@ class Device extends Model
         'washer_cold_price','washer_warm_price','washer_hot_price',
         'dryer_low_price','dryer_med_price','dryer_hi_price',
         'pulse_price','pulse_add_min','pulse_width','pulse_delay','coin_signal_width',
+        'max_vend_price','pulse_pull_up','coin_signal_idle_high','coin_signal_sensitivity',
         'status',
         'outlet_id',
         'ota_status',

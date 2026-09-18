@@ -135,6 +135,13 @@
                                         >
                                             <x-heroicon-o-pencil-square class="w-5 h-5"/>
                                         </a>
+                                        <!-- Device Parameters / Audit Trail (relocated from Manage Device) -->
+                                        <a href="{{ route('device_outlets.parameters', $tx) }}" 
+                                            class="inline-flex items-center px-2 py-1 text-gray-600 hover:text-gray-900"
+                                            title="Device Parameters &amp; Audit Trail"
+                                        >
+                                            <x-heroicon-o-cog-6-tooth class="w-5 h-5"/>
+                                        </a>
                                         @endcan
                                         <!-- Delete Form/Button -->
                                         @can('devices_outlet.delete')

@@ -1,22 +1,24 @@
 <div class="p-4">
     <h2 class="text-lg font-semibold mb-4 text-gray-800">Menu</h2>
     <ul class="space-y-1">
-        
+
+        <li class="pt-1 pb-1 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Overview</li>
         <li>
             <x-nav-link :href="route('dashboard')" 
                         :active="request()->routeIs('dashboard')" 
                         icon="heroicon-s-home"
-                        class="{{ request()->routeIs('dashboard') ? 'text-blue-600' : 'text-gray-400' }}"
+                        class="{{ request()->routeIs('dashboard') ? 'bg-blue-50 text-blue-600 rounded-md' : 'text-gray-400' }}"
             >
                 Dashboard
             </x-nav-link>
         </li>
+        <li class="pt-3 pb-1 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Administration</li>
         <!-- system users -->
         @can('users.manage')
         <li x-data="{ open: {{ request()->routeIs('users.*','roles.*','permissions.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('users.*','roles.*','permissions.*') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('users.*','roles.*','permissions.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-user-circle class="w-5 h-5 mr-3 {{ request()->routeIs('users.*','roles.*','permissions.*') ? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">System User</span>
@@ -48,12 +50,13 @@
             </ul>
         </li>
         @endcan
+        <li class="pt-3 pb-1 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Operations</li>
         <!-- outlet -->
         @can('outlets.manage')
         <li x-data="{ open: {{ request()->routeIs('outlets.*','brands.*','managers.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('outlets.*','brands.*','managers.*') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('outlets.*','brands.*','managers.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-building-storefront class="w-5 h-5 mr-3 {{ request()->routeIs('outlets.*','brands.*','managers.*') ? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Outlet</span>
@@ -97,7 +100,7 @@
         <li x-data="{ open: {{ request()->routeIs('devices.*','device_outlets.*','suppliers.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('devices.*','device_outlets.*','suppliers.*') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('devices.*','device_outlets.*','suppliers.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-server class="w-5 h-5 mr-3 {{ request()->routeIs('devices.*','device_outlets.*','suppliers.*') ? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Device</span>
@@ -129,7 +132,7 @@
         <li x-data="{ open: {{ request()->routeIs('customers.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('customers.*') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('customers.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-users class="w-5 h-5 mr-3 {{ request()->routeIs('customers.*') ? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Customer</span>
@@ -147,12 +150,13 @@
             </ul>
         </li>
         @endcan
+        <li class="pt-3 pb-1 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Finance</li>
         <!-- Ewallet -->
         @can('ewallet.manage')
         <li x-data="{ open: {{ request()->routeIs('admin.ewallet.index','admin.packages.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('admin.ewallet.index','admin.packages.*') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('admin.ewallet.index','admin.packages.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-credit-card class="w-5 h-5 mr-3 {{ request()->routeIs('admin.ewallet.index','admin.packages.*') ? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Ewallet</span>
@@ -184,7 +188,7 @@
         <li x-data="{ open: {{ request()->routeIs('admin.device-transactions.*','admin.ewallet.transaction','admin.paymentgateway.*') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('admin.device-transactions.*') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('admin.device-transactions.*') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-clipboard-document-list class="w-5 h-5 mr-3 {{ request()->routeIs('admin.device-transactions.*','admin.ewallet.transaction','admin.paymentgateway.*') ? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Transaction</span>
@@ -223,7 +227,7 @@
         <li x-data="{ open: {{ request()->routeIs('reports.members.*','reports.maintenance') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('reports.members.*') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('reports.members.*','reports.maintenance') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-presentation-chart-line class="w-5 h-5 mr-3 {{ request()->routeIs('reports.members.*','reports.maintenance')? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Report</span>
@@ -240,8 +244,6 @@
                     </x-nav-link>
                 </li>
                 @endcan
-            </ul>
-            <ul x-show="open" x-cloak class="mt-1 space-y-1 pl-11">
                 @can('reports.maintenance')
                 <li>
                     <x-nav-link href="{{ route('reports.maintenance') }}" :active="request()->routeIs('reports.maintenance')" class="{{ request()->routeIs('reports.maintenance')? 'text-blue-600' : 'text-gray-400' }}">
@@ -252,12 +254,13 @@
             </ul>
         </li>
         @endcan
+        <li class="pt-3 pb-1 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">System</li>
         <!-- Setting -->
         @can('setting.manage')
         <li x-data="{ open: {{ request()->routeIs('payment_gateway.*','mailserver.*','admin.logo.*','backup.*', 'admin.terms.*', 'admin.merchant.setting', 'firmware.upload') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('payment_gateway.*') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('payment_gateway.*','mailserver.*','admin.logo.*','backup.*', 'admin.terms.*', 'admin.merchant.setting','firmware.upload') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-wrench-screwdriver class="w-5 h-5 mr-3 {{ request()->routeIs('payment_gateway.*','mailserver.*','admin.logo.*','backup.*', 'admin.terms.*', 'admin.merchant.setting','firmware.upload') ? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Setting</span>
@@ -324,7 +327,7 @@
         <li x-data="{ open: {{ request()->routeIs('mailserver.logs', 'admin.health','admin.user.logs') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('mailserver.logs','admin.health','admin.user.logs') ? 'text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('mailserver.logs','admin.health','admin.user.logs') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
                 <x-heroicon-m-adjustments-horizontal class="w-5 h-5 mr-3 {{ request()->routeIs('mailserver.logs','admin.health','admin.user.logs')? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Log</span>
