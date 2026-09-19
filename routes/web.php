@@ -49,6 +49,10 @@ Route::middleware('guest')->group(function () {
         ->withoutMiddleware([Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
         ->name('guest.payment.return');
     Route::get('/device/{transaction}/start', [CustomerDeviceController::class, 'startQRDevice'])->name('guest.devices.start');
+    // Polled by both post-payment pages (guest and logged-in) for the
+    // real-time REMOTE_START ack — intentionally not behind customer auth,
+    // since a guest checkout has no account to check against.
+    Route::get('/payment/{transaction}/ack-status', [PaymentController::class, 'ackStatus'])->name('payment.ack-status');
 });
 
 /*

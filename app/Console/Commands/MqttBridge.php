@@ -51,14 +51,35 @@ class MqttBridge extends Command
                 return;
             }
             
-            // 2. Handle OTA / Command Status Updates
+            // 2. Handle status-topic messages — these carry several event
+            // types (OTA progress, CONFIG acks, and REMOTE_START acks),
+            // not just OTA. Previously this branch treated every message
+            // on this topic as an OTA update, which meant a start_ack
+            // payload (no 'ota_status' key) would silently null out the
+            // device's actual ota_status on every single remote start.
             if ($subTopic === 'status') {
-                Device::where('serial_number', $serial)->update([
-                    'ota_status' => $payload['ota_status'] ?? null,
-                    'ota_error'  => $payload['error'] ?? null,
-                    'last_payload' => $message, // This is the raw JSON string
-                ]);
-                $this->info("✓ OTA Status updated for $serial");
+                $event = $payload['event'] ?? null;
+
+                if ($event === 'start_ack') {
+                    // Stored for up to 2 minutes — long enough for the
+                    // customer-facing poll (see PaymentController::ackStatus)
+                    // to pick it up even on a slow connection.
+                    \Illuminate\Support\Facades\Redis::setex(
+                        "start_ack:{$payload['op_id']}",
+                        120,
+                        json_encode($payload)
+                    );
+                    $this->info("✓ start_ack [{$payload['status']}] stored for op_id {$payload['op_id']}");
+                } elseif ($event === 'config_ack') {
+                    $this->info("✓ config_ack received for $serial");
+                } else {
+                    Device::where('serial_number', $serial)->update([
+                        'ota_status' => $payload['ota_status'] ?? null,
+                        'ota_error'  => $payload['error'] ?? null,
+                        'last_payload' => $message, // This is the raw JSON string
+                    ]);
+                    $this->info("✓ OTA Status updated for $serial");
+                }
             }
 
             // 3. Handle Telemetry (Heartbeat/Coins) via Horizon

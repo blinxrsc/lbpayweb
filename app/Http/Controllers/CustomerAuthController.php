@@ -91,7 +91,7 @@ class CustomerAuthController extends Controller
         if ($request->filled('device_outlet_id')) {
             session([
                 'pay.device_outlet_id' => $request->device_outlet_id,
-                'pay.amount' => $request->amount,
+                'pay.mode' => $request->mode,
             ]);
 
             // set intended URL to confirm page

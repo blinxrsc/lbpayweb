@@ -10,7 +10,7 @@
         <p>bill_name ={{ auth('customer')->user()->name }}</p>
         <p>bill_email ={{ auth('customer')->user()->email }}</p>
         <p>bill_mobile =60{{ auth('customer')->user()->phone_number }}</p>
-        <p>bill_desc = Topup</p>
+        <p>bill_desc = {{ $deviceOutlet->outlet->outlet_name }} {{ $deviceOutlet->machine_type }} {{ $deviceOutlet->machine_num }}</p>
         <p>currency =MYR</p>
         <p>vcode = {{ $signature }}</p>
         <p>merchantid = {{ $merchantId }}</p>
@@ -23,7 +23,7 @@
             <input type="hidden" name="bill_name" value="{{ auth('customer')->user()->name }}">
             <input type="hidden" name="bill_email" value="{{ auth('customer')->user()->email }}">
             <input type="hidden" name="bill_mobile" value="60{{ auth('customer')->user()->phone_number }}">
-            <input type="hidden" name="bill_desc" value="Topup">
+            <input type="hidden" name="bill_desc" value="{{ $deviceOutlet->outlet->outlet_name }} {{ $deviceOutlet->machine_type }} {{ $deviceOutlet->machine_num }}">
             <input type="hidden" name="currency" value="MYR">
             <input type="hidden" name="vcode" value="{{ $signature }}">
             <input type="hidden" name="returnurl" value="{{ route('customer.payment.return') }}">

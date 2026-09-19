@@ -45,7 +45,7 @@
 
                     <!-- Status Lines -->
                     <p class="text-sm mt-1">
-                        @if($deviceOutlet->status)
+                        @if($deviceOutlet->is_online)
                             <span class="text-green-600 font-medium">● Online</span>
                         @else
                             <span class="text-red-600 font-medium">● Offline</span>
@@ -53,9 +53,9 @@
                     </p>
                     <p class="text-sm">
                         @if($deviceOutlet->availability)
-                            <span class="text-orange-600 font-medium">Busy</span>
-                        @else
                             <span class="text-green-600 font-medium">Available</span>
+                        @else
+                            <span class="text-orange-600 font-medium">Busy</span>
                         @endif
                     </p>
                 </div>

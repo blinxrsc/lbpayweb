@@ -95,8 +95,8 @@ class PaymentGatewayAdminController extends Controller
                 fputcsv($file, [
                     $txn->updated_at,
                     $txn->status,
-                    $txn->customer->email,
-                    $txn->customer->phone_country_code.$txn->customer->phone_number,
+                    $txn->customer ? $txn->customer->email : ($txn->meta['guest_email'] ?? 'Guest'),
+                    $txn->customer ? $txn->customer->phone_country_code.$txn->customer->phone_number : ($txn->meta['guest_phone'] ?? ''),
                     //$txn->deviceOutlet->outlet->outlet_name,
                     //$txn->deviceOutlet->machine_type.' '.$txn->deviceOutlet->machine_num,
                     //$txn->deviceOutlet->device_serial_number,

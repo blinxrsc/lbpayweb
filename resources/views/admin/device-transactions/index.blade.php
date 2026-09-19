@@ -98,15 +98,25 @@
                         @forelse($transactions as $tx)
                             <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                 <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
-                                    {{ $tx->updated_at ? \Carbon\Carbon::parse($tx->updated_at)->format('Y-m-d H:i') : $tx->updated_at->format('Y-m-d H:i') }}
+                                    {{ $tx->updated_at?->format('Y-m-d H:i') }}
                                 </td>
-                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->customer->email }}</td>
-                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->customer->phone_country_code }}{{ $tx->customer->phone_number }}</td>
+                                @if($tx->customer)
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->customer->email }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->customer->phone_country_code }}{{ $tx->customer->phone_number }}</td>
+                                @else
+                                    {{-- Guest checkout (no account) — contact details were captured
+                                         into meta instead, see PaymentController::initiateQRPayment. --}}
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
+                                        {{ $tx->meta['guest_email'] ?? '—' }}
+                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">GUEST</span>
+                                    </td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->meta['guest_phone'] ?? '—' }}</td>
+                                @endif
                                 <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ $tx->deviceOutlet->outlet->outlet_name }}</td>
                                 <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">
                                     <span class="px-2 py-1 rounded-full text-xs font-semibold
                                                 {{ $tx->deviceOutlet->machine_type == 'Washer' ? 'bg-blue-600 text-white' : '' }}
-                                                {{ $tx->deviceOutlet->machine_typee == 'Dryer' ? 'bg-amber-600 text-white' : '' }}
+                                                {{ $tx->deviceOutlet->machine_type == 'Dryer' ? 'bg-amber-600 text-white' : '' }}
                                                 {{ $tx->deviceOutlet->machine_type == 'Combo' ? 'bg-indigo-600 text-white' : '' }}
                                                 {{ !in_array($tx->deviceOutlet->machine_type, ['Washer', 'Dryer', 'Combo']) ? 'bg-indigo-100 text-white' : '' }}
                                             ">

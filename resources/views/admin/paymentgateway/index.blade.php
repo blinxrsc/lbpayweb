@@ -97,8 +97,16 @@
                         @forelse($transactions as $tx)
                             <tr class="text-sm border-b border-gray-100 last:border-0 hover:bg-gray-50">
                                 <td class="px-4 py-2">{{ $tx->updated_at }}</td>
-                                <td class="px-4 py-2">{{ $tx->customer->email }}</td>
-                                <td class="px-4 py-2">{{ $tx->customer->phone_country_code }}{{ $tx->customer->phone_number }}</td>
+                                @if($tx->customer)
+                                    <td class="px-4 py-2">{{ $tx->customer->email }}</td>
+                                    <td class="px-4 py-2">{{ $tx->customer->phone_country_code }}{{ $tx->customer->phone_number }}</td>
+                                @else
+                                    <td class="px-4 py-2">
+                                        {{ $tx->meta['guest_email'] ?? '—' }}
+                                        <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">GUEST</span>
+                                    </td>
+                                    <td class="px-4 py-2">{{ $tx->meta['guest_phone'] ?? '—' }}</td>
+                                @endif
                                 <td class="px-4 py-2">{{ ucfirst($tx->provider) }}</td>
                                 <td class="px-4 py-2">{{ $tx->provider_txn_id }}</td>
                                 <td class="px-4 py-2">{{ $tx->order_id }}</td>

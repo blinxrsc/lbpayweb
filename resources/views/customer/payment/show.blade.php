@@ -10,7 +10,13 @@
 
         <!-- Customer Info -->
         <div class="mb-4">
-            <p><strong>Customer:</strong> {{ $transaction->customer->name }} ({{ $transaction->customer->email }})</p>
+            <p><strong>Customer:</strong>
+                @if($transaction->customer)
+                    {{ $transaction->customer->name }} ({{ $transaction->customer->email }})
+                @else
+                    {{ $transaction->meta['guest_name'] ?? 'Guest' }} ({{ $transaction->meta['guest_email'] ?? 'no account' }})
+                @endif
+            </p>
             <p><strong>Outlet:</strong> {{ $transaction->deviceOutlet->outlet->outlet_name }}</p>
             <p><strong>Machine:</strong> {{ $transaction->deviceOutlet->machine_type }} {{ $transaction->deviceOutlet->machine_num }}</p>
         </div>
