@@ -183,6 +183,9 @@ Route::middleware(['auth:web'])->group(function () {
     Route::get('/reports/members/monthly', [ReportController::class, 'monthly'])->name('reports.members.monthly');
     Route::get('/reports/maintenance', [ReportController::class, 'deviceMaintenance'])->name('reports.maintenance');
     Route::get('/reports/maintenance/pdf', [ReportController::class, 'exportPdf'])->name('reports.maintenance.pdf');
+    Route::middleware('can:reports.device-revenue')->group(function () {
+        Route::get('/reports/device-revenue', [ReportController::class, 'deviceRevenue'])->name('reports.device-revenue');
+    });
 
     //merchant setting
     Route::get('/merchant/setting', [MerchantConfigController::class, 'edit'])->name('admin.merchant.setting');

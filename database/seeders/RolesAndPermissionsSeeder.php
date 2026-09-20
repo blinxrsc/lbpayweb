@@ -51,6 +51,7 @@ class RolesAndPermissionsSeeder extends Seeder
 			'transactions.member',
 			'transactions.topup',
 			'transactions.remote-start',
+			'reports.device-revenue',
 		];
 
 		foreach ($permissions as $perm) 
