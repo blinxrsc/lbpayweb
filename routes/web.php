@@ -269,6 +269,10 @@ Route::middleware(['auth:web'])->group(function () {
         Route::get('/admin/paymentgateway', [PaymentGatewayAdminController::class, 'index'])->name('admin.paymentgateway.index');
         Route::get('/admin/paymentgateway/refund', [PaymentGatewayAdminController::class, 'refund'])->name('admin.paymentgateway.refund');
 
+        //remote start log — records who triggered each REMOTE_START (admin,
+        //technician app, or a paying customer/guest)
+        Route::get('/admin/remote-start-logs', [\App\Http\Controllers\Admin\RemoteStartLogController::class, 'index'])->name('admin.remote-start-logs.index');
+
         //terms of agreement
         Route::get('/terms', [TermsOfServiceController::class, 'index'])->name('admin.terms.index');
         Route::post('/terms', [TermsOfServiceController::class, 'store'])->name('admin.terms.store');

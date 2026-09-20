@@ -33,7 +33,8 @@ class SendMqttCommand implements ShouldQueue
         public string $serial,
         public string $action, // 'REBOOT', 'REMOTE_START', 'CONFIG', 'UPDATE'.
         public array $payload = [],
-        public int $userId
+        public ?int $userId = null,
+        public ?int $customerId = null,
     ) {}
 
     /**
@@ -124,20 +125,27 @@ class SendMqttCommand implements ShouldQueue
             return;
         }
 
-        // 3. Conditional Audit Logging (Only for Starts, not Reboots)
-        if ($this->action === 'REMOTE_START') {
+        // 3. Conditional Audit Logging — only for a system user (admin
+        // dashboard / technician app) manually triggering a start.
+        // Deliberately excludes customer/guest self-checkout starts: those
+        // already have their own record in device_transactions, and this
+        // log exists specifically for staff accountability ("who used
+        // their access to start a machine"), not routine paid usage.
+        if ($this->action === 'REMOTE_START' && $this->userId) {
             RemoteStartLog::create([
                 'user_id' => $this->userId,
+                'source' => 'admin',
                 'device_serial_number' => $this->serial,
                 'cycle_type' => $this->payload['type'] ?? 'unknown',
                 'equivalent_price' => $this->payload['price'] ?? 0,
             ]);
-            
-            // Send Telegram here if needed
+
             $user = User::find($this->userId);
+            $performedBy = $user ? $user->name : "Admin #{$this->userId}";
+
             $message = "🚀 **Remote Start Triggered**\n"
              . "--------------------------\n"
-             . "👤 **Admin:** {$user->name}\n"
+             . "👤 **Admin:** {$performedBy}\n"
              . "🤖 **Device:** {$this->serial}\n"
              . "🧺 **Cycle:** {$this->payload['type']}\n"
              . "💰 **Value:** \${$this->payload['price']}\n"

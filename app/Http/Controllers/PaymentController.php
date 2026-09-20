@@ -90,7 +90,7 @@ class PaymentController extends Controller
             'type'   => $mode ?? 'device',
             'price'  => (float) $transaction->amount,
             'pulses' => $pulses,
-        ], $transaction->customer_id ?? 0);
+        ], userId: null, customerId: $transaction->customer_id);
 
         $transaction->update([
             'status' => DeviceTransaction::STATUS_ACTIVATED,

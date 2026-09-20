@@ -41,6 +41,16 @@ class RolesAndPermissionsSeeder extends Seeder
 			'logs.health',
 			'logs.user',
 			'logs.mailserver',
+			// Also already live via Admin > Permissions but missing from
+			// this seeder (same situation as the devices_outlet.* block
+			// above) — the sidebar's Transaction section already checks
+			// these. transactions.remote-start is new, added alongside the
+			// Remote Start log feature.
+			'transactions.manage',
+			'transactions.device',
+			'transactions.member',
+			'transactions.topup',
+			'transactions.remote-start',
 		];
 
 		foreach ($permissions as $perm) 
