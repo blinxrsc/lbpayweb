@@ -186,6 +186,9 @@ Route::middleware(['auth:web'])->group(function () {
     Route::middleware('can:reports.device-revenue')->group(function () {
         Route::get('/reports/device-revenue', [ReportController::class, 'deviceRevenue'])->name('reports.device-revenue');
     });
+    Route::middleware('can:reports.outlet-revenue')->group(function () {
+        Route::get('/reports/outlet-revenue', [ReportController::class, 'outletRevenue'])->name('reports.outlet-revenue');
+    });
 
     //merchant setting
     Route::get('/merchant/setting', [MerchantConfigController::class, 'edit'])->name('admin.merchant.setting');

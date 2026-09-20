@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DeviceTransaction;
+use App\Models\DeviceOutlet;
 use App\Models\Outlet;
 use Carbon\Carbon;
 
@@ -13,6 +14,21 @@ class DeviceRevenueReportService
      * 'initiated' (payment not yet confirmed) and 'failed' are excluded.
      */
     private const SUCCESSFUL_STATUSES = ['paid', 'activated', 'completed'];
+
+    /**
+     * Devices currently assigned to the outlet(s) in scope. This is a
+     * present-day snapshot count, not filtered by the date range — a
+     * device doesn't get "installed" or "uninstalled" per period, so it
+     * doesn't make sense to date-filter this the way revenue is.
+     */
+    public function deviceCount(?int $outletId): int
+    {
+        $query = DeviceOutlet::query();
+        if ($outletId) {
+            $query->where('outlet_id', $outletId);
+        }
+        return $query->count();
+    }
 
     public function summary(?int $outletId, Carbon $from, Carbon $to): array
     {
@@ -37,6 +53,7 @@ class DeviceRevenueReportService
         $totalCount  = (clone $base)->count();
 
         return [
+            'total_devices'  => $this->deviceCount($outletId),
             'mobile_revenue' => (float) $mobileRevenue,
             'mobile_count'   => $mobileCount,
             'member_revenue' => (float) $memberRevenue,
@@ -61,6 +78,7 @@ class DeviceRevenueReportService
 
             return [
                 'outlet' => $outlet,
+                'device_count'   => $this->deviceCount($outlet->id),
                 'mobile_revenue' => (float) (clone $base)->where('provider', DeviceTransaction::PROVIDER_FIUU)->sum('amount'),
                 'member_revenue' => (float) (clone $base)->where('provider', 'ewallet')->sum('amount'),
                 'total_revenue'  => (float) (clone $base)->sum('amount'),

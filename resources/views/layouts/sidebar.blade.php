@@ -231,12 +231,12 @@
         @endcan
         <!-- Report -->
         @can('reports.manage')
-        <li x-data="{ open: {{ request()->routeIs('reports.members.*','reports.maintenance','reports.device-revenue') ? 'true' : 'false' }} }">
+        <li x-data="{ open: {{ request()->routeIs('reports.members.*','reports.maintenance','reports.device-revenue','reports.outlet-revenue') ? 'true' : 'false' }} }">
             <button @click="open = !open" 
                 class="flex items-center w-full px-3 py-2 text-sm font-medium text-left rounded-md hover:bg-gray-100 transition-colors
-                {{ request()->routeIs('reports.members.*','reports.maintenance','reports.device-revenue') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
+                {{ request()->routeIs('reports.members.*','reports.maintenance','reports.device-revenue','reports.outlet-revenue') ? 'bg-blue-50 text-blue-700' : 'text-gray-600' }}">
                 
-                <x-heroicon-m-presentation-chart-line class="w-5 h-5 mr-3 {{ request()->routeIs('reports.members.*','reports.maintenance','reports.device-revenue')? 'text-blue-600' : 'text-gray-400' }}" />
+                <x-heroicon-m-presentation-chart-line class="w-5 h-5 mr-3 {{ request()->routeIs('reports.members.*','reports.maintenance','reports.device-revenue','reports.outlet-revenue')? 'text-blue-600' : 'text-gray-400' }}" />
                 <span class="flex-1">Report</span>
                 
                 <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,6 +262,13 @@
                 <li>
                     <x-nav-link href="{{ route('reports.device-revenue') }}" :active="request()->routeIs('reports.device-revenue')" class="{{ request()->routeIs('reports.device-revenue')? 'text-blue-600' : 'text-gray-400' }}">
                         Device Revenue
+                    </x-nav-link>
+                </li>
+                @endcan
+                @can('reports.outlet-revenue')
+                <li>
+                    <x-nav-link href="{{ route('reports.outlet-revenue') }}" :active="request()->routeIs('reports.outlet-revenue')" class="{{ request()->routeIs('reports.outlet-revenue')? 'text-blue-600' : 'text-gray-400' }}">
+                        Outlet Revenue
                     </x-nav-link>
                 </li>
                 @endcan

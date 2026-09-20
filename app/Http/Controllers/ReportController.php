@@ -78,4 +78,22 @@ class ReportController extends Controller
 
         return view('reports.device-revenue', compact('summary', 'byOutlet', 'outlets', 'from', 'to', 'outletId'));
     }
+
+    /**
+     * Outlet Revenue Summary — same revenue breakdown as Device Revenue,
+     * plus total devices installed, framed around a single outlet (or all
+     * outlets) rather than the device-transaction detail.
+     */
+    public function outletRevenue(Request $request, DeviceRevenueReportService $revenueService)
+    {
+        $from = $request->filled('from') ? Carbon::parse($request->from) : now()->startOfMonth();
+        $to = $request->filled('to') ? Carbon::parse($request->to) : now()->endOfMonth();
+        $outletId = $request->filled('outlet_id') ? (int) $request->outlet_id : null;
+
+        $summary = $revenueService->summary($outletId, $from, $to);
+        $byOutlet = $revenueService->byOutlet($outletId, $from, $to);
+        $outlets = Outlet::orderBy('outlet_name')->get();
+
+        return view('reports.outlet-revenue', compact('summary', 'byOutlet', 'outlets', 'from', 'to', 'outletId'));
+    }
 }
