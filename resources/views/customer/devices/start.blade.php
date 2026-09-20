@@ -31,8 +31,9 @@
     >
         <template x-if="status === 'completed'">
             <div class="mb-4 p-4 rounded-md bg-green-50 border border-green-300 text-green-700">
-                <p class="font-semibold">✅ Your machine has started!</p>
+                <p class="font-semibold">✅ Payment successful — credit sent to the machine!</p>
                 <p class="text-sm mt-1">Order {{ $transaction->order_id }} · RM {{ number_format($transaction->amount, 2) }}</p>
+                <p class="text-sm mt-2 font-medium">Please press the <strong>START</strong> button on the machine to begin your cycle.</p>
             </div>
         </template>
         <template x-if="['activated','received','awaiting_device'].includes(status)">
@@ -41,19 +42,19 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
                 </svg>
-                <p class="font-semibold" x-text="status === 'received' ? 'Machine received the command…' : 'Starting your machine…'"></p>
+                <p class="font-semibold" x-text="status === 'received' ? 'Machine received the credit…' : 'Sending credit to the machine…'"></p>
                 <p class="text-sm mt-1">Order {{ $transaction->order_id }} · RM {{ number_format($transaction->amount, 2) }}</p>
             </div>
         </template>
         <template x-if="['busy','rejected','duplicate_ignored'].includes(status)">
             <div class="mb-4 p-4 rounded-md bg-amber-50 border border-amber-300 text-amber-700">
-                <p class="font-semibold">⚠️ The machine couldn't start right now</p>
+                <p class="font-semibold">⚠️ The machine couldn't accept the credit right now</p>
                 <p class="text-sm mt-1">Please contact the outlet — quote order {{ $transaction->order_id }}.</p>
             </div>
         </template>
         <template x-if="status === 'paid'">
             <div class="mb-4 p-4 rounded-md bg-blue-50 border border-blue-300 text-blue-700">
-                <p class="font-semibold">Payment received — starting your machine…</p>
+                <p class="font-semibold">Payment received — sending credit to the machine…</p>
                 <p class="text-sm mt-1">Order {{ $transaction->order_id }} · RM {{ number_format($transaction->amount, 2) }}</p>
             </div>
         </template>

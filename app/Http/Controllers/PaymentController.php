@@ -58,7 +58,11 @@ class PaymentController extends Controller
     }
 
     /**
-     * Single place that actually tells the ESP32 to start the machine.
+     * Single place that sends the ESP32 its coin-equivalent pulse. This
+     * credits the machine exactly like inserting a physical coin would —
+     * it does NOT start the wash/dry cycle by itself. The machine is
+     * pulse-controlled, not API-controlled: the customer still has to
+     * press the machine's own Start button after the credit lands.
      * Called once a transaction is confirmed paid — from the gateway
      * callback (server-to-server, the reliable source of truth) and from
      * the e-wallet path (which pays instantly, no external callback).
