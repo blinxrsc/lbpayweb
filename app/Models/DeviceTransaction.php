@@ -51,6 +51,11 @@ class DeviceTransaction extends Model
     {
         return $this->belongsTo(DeviceOutlet::class, 'device_outlet_id');
     }
+
+    public function refund()
+    {
+        return $this->hasOne(TransactionRefund::class);
+    }
     public function getStatusColorAttribute()
     {
         return match($this->status) {

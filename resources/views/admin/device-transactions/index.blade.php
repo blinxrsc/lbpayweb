@@ -159,24 +159,26 @@
                                             @csrf
                                             <button type="submit" 
                                                 class="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800"
-                                                title="Remote Start" 
-                                                onclick="return confirm('Are you want to remote start?')"
+                                                title="Retry Pulse" 
+                                                onclick="return confirm('Re-send the start pulse to this machine?')"
                                             >
                                                 <x-heroicon-o-play-circle class="w-5 h-5"/>
                                             </button>
                                         </form>
                                     @endif
-                                    @if($tx->status === 'completed' || $tx->status === 'failed')
-                                        <form method="POST" action="{{ route('admin.device-transactions.refund', $tx) }}">
-                                            @csrf
-                                            <button type="submit" 
-                                                class="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800"
-                                                title="Refund" 
-                                                onclick="return confirm('Are you sure to refund?')"
-                                            >
-                                                <x-heroicon-o-currency-dollar class="w-5 h-5"/>
-                                            </button>
-                                        </form>
+                                    @if($tx->refund)
+                                        <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600" title="Resolved via {{ $tx->refund->method }}">
+                                            Refunded
+                                        </span>
+                                    @elseif(in_array($tx->status, ['paid', 'activated', 'completed', 'failed']))
+                                        @can('transactions.refund')
+                                        <a href="{{ route('admin.device-transactions.refund.create', $tx) }}"
+                                            class="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800"
+                                            title="Process Refund"
+                                        >
+                                            <x-heroicon-o-currency-dollar class="w-5 h-5"/>
+                                        </a>
+                                        @endcan
                                     @endif
                                 </td>
                             </tr>

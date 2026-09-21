@@ -62,19 +62,42 @@
             </div>
         @endif
 
+        <!-- Refund / Compensation record -->
+        @if($transaction->refund)
+            <div class="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
+                <h4 class="font-semibold text-sm text-gray-700 mb-2">Refund Record</h4>
+                <p class="text-sm">Method: <strong>{{ ucfirst(str_replace('_', ' ', $transaction->refund->method)) }}</strong></p>
+                @if($transaction->refund->amount)
+                    <p class="text-sm">Amount credited: RM {{ number_format($transaction->refund->amount, 2) }}</p>
+                @endif
+                @if($transaction->refund->compensationDeviceOutlet)
+                    <p class="text-sm">Compensation machine: {{ $transaction->refund->compensationDeviceOutlet->outlet->outlet_name }} — {{ $transaction->refund->compensationDeviceOutlet->machine_type }} #{{ $transaction->refund->compensationDeviceOutlet->machine_num }}</p>
+                @endif
+                <p class="text-sm">Processed by: {{ $transaction->refund->resolvedBy->name }} on {{ $transaction->refund->created_at->format('Y-m-d H:i') }}</p>
+                <p class="text-sm mt-1">Reason: {{ $transaction->refund->reason }}</p>
+                @if($transaction->refund->screenshot_path)
+                    <a href="{{ Storage::url($transaction->refund->screenshot_path) }}" target="_blank" class="inline-block mt-2 text-sm text-blue-600 hover:underline">
+                        View customer's screenshot →
+                    </a>
+                @endif
+            </div>
+        @endif
+
         <!-- Actions -->
         <div class="mt-6 flex space-x-3">
             @if($transaction->status === 'paid')
                 <form method="POST" action="{{ route('admin.device-transactions.activate', $transaction) }}">
                     @csrf
-                    <x-primary-button>Activate</x-primary-button>
+                    <x-primary-button onclick="return confirm('Re-send the start pulse to this machine?')">Retry Pulse</x-primary-button>
                 </form>
             @endif
-            @if(in_array($transaction->status, ['completed','failed']))
-                <form method="POST" action="{{ route('admin.device-transactions.refund', $transaction) }}">
-                    @csrf
-                    <x-secondary-button>Refund</x-secondary-button>
-                </form>
+            @if(!$transaction->refund && in_array($transaction->status, ['paid','activated','completed','failed']))
+                @can('transactions.refund')
+                <a href="{{ route('admin.device-transactions.refund.create', $transaction) }}"
+                   class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50">
+                    Process Refund
+                </a>
+                @endcan
             @endif
         </div>
         

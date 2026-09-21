@@ -53,6 +53,7 @@ class RolesAndPermissionsSeeder extends Seeder
 			'transactions.remote-start',
 			'reports.device-revenue',
 			'reports.outlet-revenue',
+			'transactions.refund',
 		];
 
 		foreach ($permissions as $perm) 

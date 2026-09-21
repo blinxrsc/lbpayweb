@@ -267,8 +267,11 @@ Route::middleware(['auth:web'])->group(function () {
         //device transaction
         Route::get('/admin/device-transactions/{transaction}', [DeviceTransactionAdminController::class, 'show'])->name('admin.device-transactions.show');
         Route::get('/admin/device-transactions', [DeviceTransactionAdminController::class, 'index'])->name('admin.device-transactions.index');
-        Route::get('/admin/device-transactions/activate', [DeviceTransactionAdminController::class, 'activate'])->name('admin.device-transactions.activate');
-        Route::get('/admin/device-transactions/refund', [DeviceTransactionAdminController::class, 'refund'])->name('admin.device-transactions.refund');
+        Route::middleware('can:transactions.refund')->group(function () {
+            Route::get('/admin/device-transactions/{transaction}/refund', [\App\Http\Controllers\Admin\TransactionRefundController::class, 'create'])->name('admin.device-transactions.refund.create');
+            Route::post('/admin/device-transactions/{transaction}/refund', [\App\Http\Controllers\Admin\TransactionRefundController::class, 'store'])->name('admin.device-transactions.refund.store');
+        });
+        Route::post('/admin/device-transactions/{transaction}/activate', [DeviceTransactionAdminController::class, 'activate'])->name('admin.device-transactions.activate');
 
         //payment gateway transaction
         Route::get('/admin/paymentgateway/{transaction}', [PaymentGatewayAdminController::class, 'show'])->name('admin.paymentgateway.show');
