@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\DeviceStatusController;
 use App\Http\Controllers\Api\TechnicianAuthController;
 use App\Http\Controllers\Api\TechnicianDeviceController;
+use App\Http\Controllers\Api\TechnicianOutletController;
 
 Route::post('/device/status', [DeviceStatusController::class, 'updateStatus'])
     ->middleware('device.key');
@@ -16,7 +17,15 @@ Route::post('/technician/login', [TechnicianAuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->prefix('technician')->group(function () {
     Route::post('/logout', [TechnicianAuthController::class, 'logout']);
+
+    Route::get('/dashboard', [TechnicianOutletController::class, 'dashboard']);
+    Route::get('/profile', [TechnicianOutletController::class, 'profile']);
+    Route::get('/outlets', [TechnicianOutletController::class, 'outlets']);
+    Route::get('/outlets/{outlet}/devices', [TechnicianOutletController::class, 'devices']);
+
     Route::get('/devices/{serial}', [TechnicianDeviceController::class, 'show']);
     Route::put('/devices/{serial}/parameters', [TechnicianDeviceController::class, 'updateParameters']);
+    Route::post('/devices/{serial}/send-config', [TechnicianDeviceController::class, 'sendConfig']);
     Route::post('/devices/{serial}/start', [TechnicianDeviceController::class, 'start']);
+    Route::get('/start-ack/{opId}', [TechnicianDeviceController::class, 'startAck']);
 });
