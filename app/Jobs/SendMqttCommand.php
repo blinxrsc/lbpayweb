@@ -103,6 +103,11 @@ class SendMqttCommand implements ShouldQueue
                 'coin_pull_up'             => (bool) $device->pulse_pull_up,
                 'coin_idle_high'           => (bool) $device->coin_signal_idle_high,
                 'coin_signal_sensitivity_ms' => $device->coin_signal_sensitivity,
+                // Output pulse polarity — was previously never sent at all,
+                // meaning every device silently ran on the firmware's
+                // hardcoded default (idle HIGH / pulse LOW) regardless of
+                // what the actual relay/coin-input wiring needed.
+                'pulse_active_low'         => (bool) $device->pulse_active_low,
                 // max_vend_price is intentionally NOT included — it's a
                 // backend price cap, the firmware has no use for it.
             ]);

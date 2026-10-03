@@ -26,3 +26,7 @@ Thumbs.db
 *.key
 *.yaml
 /.key
+/storage/logs/*.tar
+/storage/logs/*.tar.gz
+*.tar
+*.tar.gz

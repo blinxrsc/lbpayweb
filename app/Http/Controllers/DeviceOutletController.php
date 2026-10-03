@@ -333,6 +333,7 @@ class DeviceOutletController extends Controller
             // New fields:
             'max_vend_price'           => 'nullable|numeric|min:0',
             'pulse_pull_up'             => 'required|boolean',
+            'pulse_active_low'          => 'required|boolean',
             'coin_signal_idle_high'     => 'required|boolean',
             'coin_signal_sensitivity'   => 'required|integer|min:1',
         ]);

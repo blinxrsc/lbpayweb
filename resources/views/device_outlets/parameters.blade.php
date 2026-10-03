@@ -100,6 +100,23 @@
                             @error('pulse_pull_up')<span class="text-red-500 text-sm block">{{ $message }}</span>@enderror
                         </div>
 
+                        <div class="mb-4">
+                            <label>Pulse Signal Polarity (output to machine)</label>
+                            <input type="hidden" name="pulse_active_low" value="0">
+                            <label class="inline-flex items-center mt-1">
+                                <input type="checkbox" name="pulse_active_low" value="1"
+                                    {{ old('pulse_active_low', $device->pulse_active_low) ? 'checked' : '' }}
+                                    class="form-control mr-2">
+                                Active Low (unchecked = Active High)
+                            </label>
+                            <p class="text-xs text-gray-400 mt-1">
+                                Whether the coin-credit pulse sent <strong>to the machine</strong> is idle-HIGH/pulse-LOW or idle-LOW/pulse-HIGH.
+                                If REMOTE_START runs but the machine never registers a credit, this is usually the setting to flip —
+                                it's separate from Pull Up/Down and Coin Signal Idle Level above, which only affect reading real coins <em>in</em>, not the pulse sent out.
+                            </p>
+                            @error('pulse_active_low')<span class="text-red-500 text-sm block">{{ $message }}</span>@enderror
+                        </div>
+
                         <h3 class="text-md font-semibold text-gray-700 mb-2 mt-6">Coin Signal Settings</h3>
 
                         <div class="mb-4">
