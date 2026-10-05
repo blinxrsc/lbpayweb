@@ -82,6 +82,18 @@ new class extends Component {
             return;
         }
 
+        $deviceOutlet = DeviceOutlet::where('device_serial_number', $serial)->first();
+        if (!$deviceOutlet || !$deviceOutlet->is_online) {
+            // Bug report case: command gets published while the ESP32 is mid
+            // WiFi/MQTT reconnect and is simply never received — QoS 0 has no
+            // queue or retry. Checking is_online first (same check every other
+            // dispatch path already does) catches the common case: a device
+            // that's actually offline/reconnecting right now shows as offline
+            // here too, since is_online reads the same Redis heartbeat.
+            $this->dispatch('notify', message: "Device appears offline — command was not sent.", type: 'error');
+            return;
+        }
+
         $device = Device::where('serial_number', $serial)->first();
         if (!$device || (float) $device->pulse_price <= 0) {
             $this->dispatch('notify', message: "This device has no pulse_price configured.", type: 'error');
@@ -89,15 +101,18 @@ new class extends Component {
         }
         $pulses = (int) ceil($price / $device->pulse_price);
 
-        // Lock for 30 seconds to prevent double-clicks
-        Redis::setex($lockKey, 30, 'true');
+        // Lock duration now scales with how long the pulse sequence actually
+        // takes (pulses * (width + delay)) plus a flat safety margin, instead
+        // of a flat 30s that was far longer than any realistic sequence —
+        // even 50 pulses at default timing (40ms width + 100ms delay) is ~7s.
+        $sequenceMs = $pulses * (($device->pulse_width ?? 40) + ($device->pulse_delay ?? 100));
+        $lockSeconds = max(5, (int) ceil($sequenceMs / 1000) + 5);
+        Redis::setex($lockKey, $lockSeconds, 'true');
 
-        // Hand off the work to Redis/Horizon
-        // Dispatch the Job
         SendMqttCommand::dispatch(
-            $serial, 
-            'REMOTE_START', 
-            ['type' => $type, 'price' => $price, 'pulses' => $pulses], // We send the 'type' (e.g., WASHER_HOT) so the ESP32 knows which relay to click
+            $serial,
+            'REMOTE_START',
+            ['type' => $type, 'price' => $price, 'pulses' => $pulses],
             auth()->id()
         );
         $this->dispatch('close-modal', "confirm-restart-{$serial}");

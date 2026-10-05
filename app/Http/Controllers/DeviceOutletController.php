@@ -351,6 +351,28 @@ class DeviceOutletController extends Controller
             }
         }
 
+        // A pulse must always be cheaper than the cheapest full cycle — otherwise
+        // every purchase rounds down to exactly 1 pulse (see bug report: RM2-5 all
+        // produced "1 pulses" because pulse_price was left at a value >= RM5).
+        if (array_key_exists('pulse_price', $validated)) {
+            $cyclePrices = array_filter([
+                $validated['washer_cold_price'] ?? $device->washer_cold_price,
+                $validated['washer_warm_price'] ?? $device->washer_warm_price,
+                $validated['washer_hot_price']  ?? $device->washer_hot_price,
+                $validated['dryer_low_price']   ?? $device->dryer_low_price,
+                $validated['dryer_med_price']   ?? $device->dryer_med_price,
+                $validated['dryer_hi_price']    ?? $device->dryer_hi_price,
+            ], fn ($p) => $p > 0);
+
+            if ($cyclePrices && $validated['pulse_price'] >= min($cyclePrices)) {
+                return back()->withInput()->withErrors([
+                    'pulse_price' => 'Pulse price (RM ' . number_format($validated['pulse_price'], 2) .
+                        ') must be lower than your cheapest cycle price (RM ' . number_format(min($cyclePrices), 2) .
+                        '), or every purchase will round down to a single pulse.',
+                ]);
+            }
+        }
+
         $device->update($validated);
 
         // Push the pulse/coin-signal subset straight to the ESP32. max_vend_price
