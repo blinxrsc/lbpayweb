@@ -70,7 +70,18 @@ services:
     depends_on:
       - redis
       - app
-  # scheduler
+  mqtt-bridge-2:
+    image: lbpayweb-mqtt-bridge
+    container_name: lbpayweb_mqtt_bridge_2
+    restart: always
+    command: php artisan app:mqtt-bridge
+    volumes:
+      - .:/var/www/html/lbpayweb
+    environment:
+      - REDIS_HOST=redis
+      - MQTT_HOST=172.31.38.200
+    depends_on: [redis, app]
+# scheduler
   scheduler:
     build: .
     container_name: lbpayweb_scheduler

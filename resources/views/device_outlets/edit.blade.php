@@ -54,8 +54,8 @@
                     <div class="mb-4">
                         <x-input-label for="status" :value="__('Status')" />
                         <select name="status" id="machine_type" class="block mt-1 w-full rounded-md shadow-sm border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                            <option value="Online" {{ old('status', $deviceOutlet->status) == 'Online' ? 'selected' : '' }}>Online</option>
-                            <option value="Offline" {{ old('status', $deviceOutlet->status) == 'Offline' ? 'selected' : '' }}>Offline</option>
+                            <option value="online" {{ strtolower(old('status', $deviceOutlet->status)) == 'online' ? 'selected' : '' }}>Online</option>
+                            <option value="offline" {{ strtolower(old('status', $deviceOutlet->status)) == 'offline' ? 'selected' : '' }}>Offline</option>
                         </select>
                     </div>
                     <div class="mb-4">

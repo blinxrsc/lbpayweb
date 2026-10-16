@@ -29,7 +29,7 @@
                         .then(r => r.json())
                         .then(data => {
                             this.status = data.status;
-                            if (['completed','failed','busy','rejected','duplicate_ignored'].includes(data.status)) {
+                            if (['completed','failed','busy','rejected','duplicate_ignored','review'].includes(data.status)) {
                                 this.polling = false;
                                 return;
                             }
@@ -59,7 +59,7 @@
                 <p class="text-sm mt-1">Order {{ $transaction->order_id }} · RM {{ number_format($transaction->amount, 2) }}</p>
             </div>
         </template>
-        <template x-if="['busy','rejected','duplicate_ignored'].includes(status)">
+        <template x-if="['busy','rejected','review'].includes(status)">
             <div class="mb-4 p-4 rounded-md bg-amber-50 border border-amber-300 text-amber-700">
                 <p class="font-semibold">⚠️ The machine couldn't accept the credit right now</p>
                 <p class="text-sm mt-1">Please contact the outlet — quote order {{ $transaction->order_id }}.</p>

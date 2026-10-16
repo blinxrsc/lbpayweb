@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\SendMqttCommand;
 use App\Models\DeviceTransaction;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
 /**
@@ -64,9 +65,37 @@ class MachineStartService
 
         $transaction->update([
             'status' => DeviceTransaction::STATUS_ACTIVATED,
-            'meta'   => array_merge($meta, ['op_id' => $opId, 'pulses' => $pulses]),
+            'meta'   => array_merge($meta, [
+                'op_id'      => $opId,
+                'pulses'     => $pulses,
+                // F6: lets the reconciler find starts that were never acked.
+                'started_at' => $meta['started_at'] ?? now()->toIso8601String(),
+            ]),
         ]);
 
+        // F6: op_id -> transaction, so the MQTT bridge can attach the
+        // device's acks (received / completed / rejected) to this payment.
+        Redis::setex("start_op:{$opId}", 86400, (string) $transaction->id);
+
         return true;
+    }
+
+    /**
+     * Re-send a start that the device never acknowledged, with the SAME
+     * op_id. If the device did run it (and only the ack was lost), it answers
+     * "duplicate_ignored" instead of pulsing again.
+     */
+    public function resend(DeviceTransaction $transaction): bool
+    {
+        $meta = $transaction->meta ?? [];
+        if (empty($meta['op_id'])) {
+            return false;
+        }
+
+        $meta['retry_count'] = (int) ($meta['retry_count'] ?? 0) + 1;
+        $meta['retried_at']  = now()->toIso8601String();
+        $transaction->update(['meta' => $meta]);
+
+        return $this->dispatchForTransaction($transaction->fresh());
     }
 }

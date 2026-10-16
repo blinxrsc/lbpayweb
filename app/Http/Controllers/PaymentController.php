@@ -170,6 +170,12 @@ class PaymentController extends Controller
             return response()->json(['status' => $transaction->status]);
         }
 
+        // The transaction's own status wins once the ack has been recorded
+        // on it (F6): 'completed' or 'review' are final for the customer.
+        if (in_array($transaction->status, [DeviceTransaction::STATUS_COMPLETED, DeviceTransaction::STATUS_REVIEW], true)) {
+            return response()->json(['status' => $transaction->status]);
+        }
+
         $ackJson = Redis::get("start_ack:{$opId}");
 
         if (!$ackJson) {
@@ -180,7 +186,12 @@ class PaymentController extends Controller
         }
 
         $ack = json_decode($ackJson, true);
-        return response()->json(['status' => $ack['status'] ?? 'unknown']);
+        $status = $ack['status'] ?? 'unknown';
+
+        // After an automatic re-send (F6) the device answers
+        // "duplicate_ignored" when it had already run this start — for the
+        // customer that means done.
+        return response()->json(['status' => $status === 'duplicate_ignored' ? 'completed' : $status]);
     }
     public function confirmQR(DeviceOutlet $deviceOutlet)
     {

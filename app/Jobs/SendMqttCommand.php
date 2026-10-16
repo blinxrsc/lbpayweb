@@ -111,6 +111,8 @@ class SendMqttCommand implements ShouldQueue
                 // Firmware v1.5.5+: per-start pulse limit, kept in sync
                 // with the backend's own check (config/lbpay.php).
                 'max_pulses'               => \App\Models\Device::maxPulsesPerStart(),
+                // Firmware v1.5.6+: heartbeat interval (older firmware ignores it).
+                'heartbeat_s'              => (int) config('lbpay.heartbeat_seconds', 60),
                 // max_vend_price is intentionally NOT included — it's a
                 // backend price cap, the firmware has no use for it.
             ]);

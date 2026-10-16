@@ -2,98 +2,67 @@
 
 namespace App\Console\Commands;
 
+use App\Services\MachineMessageHandler;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use PhpMqtt\Client\Facades\MQTT;
-use App\Jobs\ProcessMachineMessage;
-use App\Models\Device;
+use Throwable;
 
+/**
+ * Listens to EMQX and hands every message to MachineMessageHandler.
+ *
+ * F8 changes:
+ *  - No per-message Log::info (was ~11.5M lines/day at 8,000 devices).
+ *    Set MQTT_BRIDGE_DEBUG=true to log messages while troubleshooting.
+ *  - Optional EMQX shared subscription (MQTT_SHARE_GROUP=lbpay): run 2-3
+ *    bridge containers and EMQX spreads telemetry/status across them.
+ *    Presence is subscribed normally by every bridge, because retained
+ *    presence (current online/offline of every device) is only delivered
+ *    to normal subscriptions, and handling it twice is harmless.
+ *  - Writes a liveness timestamp to Redis so `app:bridge-status` / a
+ *    healthcheck can tell a stuck bridge from a working one.
+ *  - A handler error is logged and the bridge keeps running (one bad
+ *    message must not stop ingest for the whole fleet).
+ */
 class MqttBridge extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'app:mqtt-bridge';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Listen to EMQX and dispatch jobs to Horizon';
+    protected $description = 'Listen to EMQX and process device messages';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(MachineMessageHandler $handler): int
     {
-        $mqtt = MQTT::connection();
+        $mqtt  = MQTT::connection();
+        $group = config('lbpay.mqtt_share_group');
+        $share = fn (string $filter) => $group ? "\$share/{$group}/{$filter}" : $filter;
 
-        // Subscribe to all machine topics using a wildcard (+)
-        // machines/NYJ001/telemetry, machines/NYJ002/telemetry, etc.
-        $mqtt->subscribe('machines/#', function (string $topic, string $message) {
-            \Log::info("Message received on topic: $topic content: $message"); // Add this
-            $this->info("[" . now()->format('H:i:s') . "] Incoming: $topic");
-            
-            // Extract the serial number from the topic
-            $parts = explode('/', $topic);
-            if (count($parts) < 3) return; // Ignore malformed topics
-
-            $serial = $parts[1];
-            $subTopic = $parts[2]; // 'telemetry' or 'status'
-
-            $payload = json_decode($message, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->error("Invalid JSON received from $serial: $message");
-                \Log::error("JSON Decode Error for serial $serial: " . json_last_error_msg());
-                return;
+        $callback = function (string $topic, string $message, bool $retained = false) use ($handler) {
+            try {
+                $handler->handle($topic, $message, $retained);
+            } catch (Throwable $e) {
+                Log::error("MQTT handler error on {$topic}: " . $e->getMessage());
             }
-            
-            // 2. Handle status-topic messages — these carry several event
-            // types (OTA progress, CONFIG acks, and REMOTE_START acks),
-            // not just OTA. Previously this branch treated every message
-            // on this topic as an OTA update, which meant a start_ack
-            // payload (no 'ota_status' key) would silently null out the
-            // device's actual ota_status on every single remote start.
-            if ($subTopic === 'status') {
-                $event = $payload['event'] ?? null;
+        };
 
-                if ($event === 'start_ack') {
-                    // Stored for up to 2 minutes — long enough for the
-                    // customer-facing poll (see PaymentController::ackStatus)
-                    // to pick it up even on a slow connection.
-                    \Illuminate\Support\Facades\Redis::setex(
-                        "start_ack:{$payload['op_id']}",
-                        120,
-                        json_encode($payload)
-                    );
-                    $this->info("✓ start_ack [{$payload['status']}] stored for op_id {$payload['op_id']}");
-                } elseif ($event === 'config_ack') {
-                    $this->info("✓ config_ack received for $serial");
-                } else {
-                    Device::where('serial_number', $serial)->update([
-                        'ota_status' => $payload['ota_status'] ?? null,
-                        'ota_error'  => $payload['error'] ?? null,
-                        'last_payload' => $message, // This is the raw JSON string
-                    ]);
-                    $this->info("✓ OTA Status updated for $serial");
-                }
-            }
+        $mqtt->subscribe($share('machines/+/telemetry'), $callback, 0);
+        $mqtt->subscribe($share('machines/+/status'), $callback, 0);
+        $mqtt->subscribe('machines/+/presence', $callback, 0);
 
-            // 3. Handle Telemetry (Heartbeat/Coins) via Horizon
-            if ($subTopic === 'telemetry') {
-                // Continue with your existing Job dispatching...
-                ProcessMachineMessage::dispatch($serial, $payload);
-                $this->info("⚡ Telemetry job queued for $serial");
-            }
-        }, 0);
-        // This loop(true) is what keeps the terminal "alive"
-        // If it gets stuck, try adding a small sleep or check connection status
+        $this->info('MQTT bridge listening' . ($group ? " (shared group '{$group}')" : '') . '.');
+
+        // loopOnce() (not loop()): loop() never returns while subscriptions
+        // exist, so nothing else could run. loopOnce() reads everything
+        // available, sends keep-alive pings, and sleeps 50 ms only when idle.
+        $startedAt = microtime(true);
+        $lastAlive = 0;
         while (true) {
-            $mqtt->loop(true);
-            usleep(100000); // 0.1s sleep to prevent CPU spiking
+            $mqtt->loopOnce($startedAt, true, 50000);
+
+            if (time() - $lastAlive >= 10) {
+                $lastAlive = time();
+                Redis::set(MachineMessageHandler::BRIDGE_ALIVE, $lastAlive);
+            }
         }
     }
 }
