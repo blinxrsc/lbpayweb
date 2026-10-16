@@ -30,3 +30,5 @@ Thumbs.db
 /storage/logs/*.tar.gz
 *.tar
 *.tar.gz
+/nginx_data
+/nginx_letsencrypt
