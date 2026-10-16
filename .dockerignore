@@ -1,0 +1,81 @@
+# .dockerignore — LB Paylinker (lbpayweb)
+#
+# Keeps secrets, large folders and root-owned folders OUT of the Docker
+# build context and therefore out of every image.
+#
+# Why this is safe: every container bind-mounts the project folder
+# (.:/var/www/html/lbpayweb), so at RUNTIME the app still sees .env,
+# vendor/, storage/ etc. from the host exactly as before. This file only
+# changes what gets baked into the IMAGE when it is built.
+
+# --- Secrets: must never be inside an image -------------------------------
+.env
+.env.*
+!.env.example
+.key/
+**/*.pem
+**/*.key
+auth.json
+# firmware sources contain Wi-Fi / MQTT passwords (secrets.h)
+iot_firmware/
+
+# --- Nginx Proxy Manager data (keys, certs, its DB; root-owned) -----------
+nginx_data/
+nginx_letsencrypt/
+
+# --- Version control & tooling --------------------------------------------
+.git/
+.github/
+.idea/
+.vscode/
+.phpunit.result.cache
+.phpunit.cache/
+
+# --- Rebuilt inside the image / not needed --------------------------------
+# the Dockerfile runs composer install itself
+vendor/
+# the Dockerfile does not build front-end assets
+node_modules/
+
+# --- Runtime data (folders kept, contents excluded) -----------------------
+# The Dockerfile chowns/chmods storage/ and bootstrap/cache, so the folders
+# must still exist — their .gitignore files keep them in the context.
+storage/logs/*
+!storage/logs/.gitignore
+# database / site backups
+storage/app/backups/
+storage/app/private/*
+!storage/app/private/.gitignore
+storage/app/public/*
+!storage/app/public/.gitignore
+storage/framework/cache/data/*
+!storage/framework/cache/data/.gitignore
+storage/framework/sessions/*
+!storage/framework/sessions/.gitignore
+storage/framework/views/*
+!storage/framework/views/.gitignore
+!storage/framework/views/livewire/
+storage/framework/views/livewire/*
+!storage/framework/views/livewire/.gitignore
+storage/framework/testing/*
+!storage/framework/testing/.gitignore
+# uploads (logos, firmware .bin with compiled-in MQTT password); served from
+# the mounted folder at runtime
+public/storage
+# may hold cached config WITH secrets (config:cache)
+bootstrap/cache/*
+!bootstrap/cache/.gitignore
+
+# --- Data files, dumps, archives, patches ----------------------------------
+database/*.sqlite
+**/*.sql
+**/*.sql.gz
+**/*.tar
+**/*.tar.gz
+**/*.tgz
+**/*.zip
+**/*.patch
+**/*.rej
+**/*.orig
+# import data — run `import:outlets` against the mounted file instead
+Stores.csv
