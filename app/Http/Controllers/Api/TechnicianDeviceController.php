@@ -102,13 +102,6 @@ class TechnicianDeviceController extends Controller
                 $validated['dryer_med_price']   ?? $device->dryer_med_price,
                 $validated['dryer_hi_price']    ?? $device->dryer_hi_price,
             ], fn ($p) => $p > 0);
-
-            if ($cyclePrices && $validated['pulse_price'] >= min($cyclePrices)) {
-                return response()->json([
-                    'message' => 'Pulse price (RM ' . number_format($validated['pulse_price'], 2) .
-                        ') must be lower than the cheapest cycle price (RM ' . number_format(min($cyclePrices), 2) . ').',
-                ], 422);
-            }
         }
 
         foreach ($validated as $field => $newValue) {

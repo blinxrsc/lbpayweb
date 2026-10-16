@@ -90,7 +90,7 @@ services:
     expose:
       - "80"
     environment:
-      - PMA_HOST=lbpaylinkerdb.c9aq4c0qcqf3.ap-southeast-5.rds.amazonaws.com
+      - PMA_HOST=lbpaylinker-db.c9aq4c0qcqf3.ap-southeast-5.rds.amazonaws.com
       - PMA_PORT=3306
       - UPLOAD_LIMIT=64M
 

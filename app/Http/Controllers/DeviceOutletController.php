@@ -363,14 +363,6 @@ class DeviceOutletController extends Controller
                 $validated['dryer_med_price']   ?? $device->dryer_med_price,
                 $validated['dryer_hi_price']    ?? $device->dryer_hi_price,
             ], fn ($p) => $p > 0);
-
-            if ($cyclePrices && $validated['pulse_price'] >= min($cyclePrices)) {
-                return back()->withInput()->withErrors([
-                    'pulse_price' => 'Pulse price (RM ' . number_format($validated['pulse_price'], 2) .
-                        ') must be lower than your cheapest cycle price (RM ' . number_format(min($cyclePrices), 2) .
-                        '), or every purchase will round down to a single pulse.',
-                ]);
-            }
         }
 
         $device->update($validated);
