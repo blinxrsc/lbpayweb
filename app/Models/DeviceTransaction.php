@@ -13,6 +13,9 @@ class DeviceTransaction extends Model
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_REFUNDED  = 'refunded';
     public const STATUS_ACTIVATED  = 'activated';
+    // Paid, but the gateway amount didn't match the order — machine was NOT
+    // started. Needs a human to check fiuu.log and refund or activate.
+    public const STATUS_REVIEW     = 'review';
     // Provider identifier
     public const PROVIDER_FIUU = 'fiuu';
 

@@ -26,7 +26,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if ($mail = MailServer::first()) {
+        // Guarded so artisan commands (migrate on a fresh DB, tests) don't
+        // crash before the mail_servers table exists.
+        try {
+            $mail = MailServer::first();
+        } catch (\Throwable $e) {
+            $mail = null;
+        }
+        if ($mail) {
             config([
                 'mail.mailers.smtp.host'       => $mail->host,
                 'mail.mailers.smtp.port'       => $mail->port,

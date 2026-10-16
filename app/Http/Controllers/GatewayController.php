@@ -9,137 +9,84 @@ use \App\Services\EwalletService;
 use App\Models\PaymentGatewayTransaction;
 use App\Models\PaymentGatewaySetting;
 use App\Models\EwalletAccount;
+use App\Services\FiuuSignature;
 
 class GatewayController extends Controller
 {
+    /**
+     * Fiuu server-to-server callback for e-wallet TOP-UPS.
+     *
+     * Old bugs fixed here:
+     *  - An invalid signature only set $status = -1 and carried on, so a
+     *    forged POST could still flip a pending top-up to 'failed'. Now an
+     *    invalid signature is rejected with 400 and nothing is touched.
+     *  - The row was set back to 'initiated' BEFORE crediting, which
+     *    defeated the duplicate check, so each repeated "00" credited the
+     *    wallet again. The pre-update is gone; EwalletService::settleTopup()
+     *    locks the row and does nothing if it is already 'paid'.
+     */
     public function callback(Request $r, EwalletService $svc)
     {
-        // Log the entire incoming payload
-        Log::channel('fiuu')->info('Fiuu CALLBACK called', $r->all());
-
-        $tranID   = $r->input('tranID');
-        $orderId  = $r->input('orderid');
-        $status   = $r->input('status');
-        $domain   = $r->input('domain');
-        $amount   = $r->input('amount');
-        $currency = $r->input('currency');
-        $appcode  = $r->input('appcode');
-        $paydate  = $r->input('paydate');
-        $skey     = $r->input('skey');
-        $nbcb     = $r->input('nbcb');
+        Log::channel('fiuu')->info('Fiuu top-up CALLBACK received', $r->except(['skey']));
 
         $gw = PaymentGatewaySetting::where('status', 'active')->firstOrFail();
-        $secKey = $gw->secret_key;
 
-        // Verify return signature
-        $key0 = md5($tranID.$orderId.$status.$domain.$amount.$currency);
-        $key1 = md5($paydate.$domain.$key0.$appcode.$secKey);
-
-        if ($skey !== $key1) {
-            $status = -1;
-            Log::channel('fiuu')->warning("Invalid signature for order {$orderId}", [
-                'expected' => $key1,
-                'received' => $skey,
-            ]);
+        if (!FiuuSignature::verify($r->all(), $gw)) {
+            Log::channel('fiuu')->warning('Invalid signature on top-up callback', ['order_id' => $r->input('orderid')]);
+            return response('Invalid signature', 400);
         }
 
-        Log::channel('fiuu')->info('Signature check', [
-            'expected' => $key1,
-            'received' => $skey
-        ]);
+        [$result] = $svc->settleTopup($r->all(), 'callback');
 
-        $pg = PaymentGatewayTransaction::where('order_id', $orderId)->firstOrFail();
-        // Don’t set to paid yet — leave as initiated/failed
-        $pg->update([
-            'provider_txn_id'  => $tranID,
-            'response_payload' => $r->all(),
-            'status'           => $status === '00' ? 'initiated' : 'failed',
-        ]);
-
-        //Log::channel('fiuu')->info("Transaction {$orderId} updated to {$pg->status}");
-        Log::channel('fiuu')->info("Transaction {$orderId} initiated to {$pg->status}");
-
-        if ($status === '00') {
-            $svc->creditTopupWithPackage(
-                $pg->user_id,
-                (float)$amount,
-                $tranID,
-                $orderId,
-                'fiuu',
-                ['response_payload' => $r->all()]
-            );
-            //Log::channel('fiuu')->info("Wallet credited for order {$orderId}");
-            //$pg->update(['status' => 'paid']);
-        } else {
-            Log::channel('fiuu')->error("Wallet credit failed {$orderId} for user {$pg->user_id}");
-            $pg->update(['status' => 'failed']);
+        if ($result === EwalletService::TOPUP_NOT_FOUND) {
+            return response('Order not found', 404);
         }
-        // Respond to Fiuu
-        if ($nbcb == 1) {
-            return response("CBTOKEN:MPSTATOK", 200);
-        }
-        return response("OK", 200);
+
+        return (int) $r->input('nbcb') === 1
+            ? response('CBTOKEN:MPSTATOK', 200)
+            : response('OK', 200);
     }
- 
-    //return method from API fiuu
-    public function return(Request $request)
+
+    /**
+     * Browser return after a top-up.
+     *
+     * SECURITY: used to call Auth::guard('customer')->loginUsingId() for
+     * whoever presented an order id (signature checked only afterwards),
+     * which allowed logging in as any customer. Now:
+     *  - nobody is logged in here;
+     *  - a valid signature also settles the top-up (idempotent), in case
+     *    the browser arrives before the server callback;
+     *  - the customer lands on their dashboard. The session cookie
+     *    (SameSite=Lax) is sent on this top-level GET redirect, so a
+     *    customer who was logged in stays logged in; anyone else is sent
+     *    to the login page by the auth middleware.
+     */
+    public function return(Request $request, EwalletService $svc)
     {
-        Log::channel('fiuu')->info('Fiuu RETURN called', $request->all());
+        Log::channel('fiuu')->info('Fiuu top-up RETURN', $request->except(['skey']));
 
-        $tranID   = $request->input('tranID');
-        $orderId  = $request->input('orderid');
-        $status   = $request->input('status');
-        $domain   = $request->input('domain');
-        $amount   = $request->input('amount');
-        $currency = $request->input('currency');
-        $appcode  = $request->input('appcode');
-        $paydate  = $request->input('paydate');
-        $skey     = $request->input('skey');
+        $orderId = (string) $request->input('orderid');
+        $gw = PaymentGatewaySetting::where('status', 'active')->first();
+        $valid = $gw && FiuuSignature::verify($request->all(), $gw);
 
-        $gw = PaymentGatewaySetting::where('status', 'active')->firstOrFail();
-        $secKey = $gw->secret_key;
-
-        // Verify return signature
-        $key0 = md5($tranID.$orderId.$status.$domain.$amount.$currency);
-        $key1 = md5($paydate.$domain.$key0.$appcode.$secKey);
-        $validSignature = ($skey === $key1);
-
-        // Look up transaction in DB
-        $transaction = PaymentGatewayTransaction::where('order_id', $orderId)->first();
-
-        // Decide outcome
-        if ($transaction) {
-            // Auto-login the customer linked to this transaction
-            Auth::guard('customer')->loginUsingId($transaction->user_id);
-
-            // Decide outcome
-            $isPaid = $transaction->status === 'paid';
-            $showSuccess = $validSignature && ($status === "00" || $isPaid);
-
-            if ($showSuccess) {
-                return redirect()->route('customer.dashboard')
-                    ->with('success', "Top-up successful! Order {$orderId}, Amount RM {$amount}");
-            }
+        if ($valid) {
+            $svc->settleTopup($request->all(), 'return');
         }
+
+        $transaction = $orderId !== '' ? PaymentGatewayTransaction::where('order_id', $orderId)->first() : null;
+        $amount = $transaction ? number_format((float) $transaction->amount, 2) : null;
+
+        if ($valid && $transaction && $transaction->status === PaymentGatewayTransaction::STATUS_PAID) {
+            return redirect()->route('customer.dashboard')
+                ->with('success', "Top-up successful! Order {$orderId}, Amount RM {$amount}");
+        }
+
+        if ($valid && $transaction && $transaction->status === PaymentGatewayTransaction::STATUS_INITIATED) {
+            return redirect()->route('customer.dashboard')
+                ->with('success', "Payment is being confirmed for order {$orderId}. Your balance will update shortly.");
+        }
+
         return redirect()->route('customer.dashboard')
-            ->with('error', "Payment failed or session expired for Order {$orderId}, Amount RM {$amount}");
-/**
-        $isPaid = $transaction && $transaction->status === 'paid';
-        $showSuccess = $validSignature && ($status === "00" || $isPaid);
-
-        if ($showSuccess) {
-            return view('ewallet.success', [
-                'orderId' => $transaction->order_id ?? $orderId,
-                'amount'  => $transaction->amount ?? $amount,
-                'date'    => $transaction->updated_at ?? now(),
-            ]);
-        }
-
-        return view('ewallet.failed', [
-            'orderId' => $transaction->order_id ?? $orderId,
-            'amount'  => $transaction->amount ?? $amount,
-            'date'    => $transaction->updated_at ?? now(),
-        ]);
-        */
+            ->with('error', 'Top-up was not completed. If you were charged, please contact support with your bank reference.');
     }
 }

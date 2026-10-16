@@ -5,21 +5,10 @@
     </x-slot>
 
     <div class="p-6 bg-white shadow rounded">
-        <p class="mb-4">Redirecting you to Fiuu payment gateway…</p>
-        <p>amount ={{ $amount }}</p>
-        <p>orderid ={{ $orderId }}</p>
-        <p>bill_name ={{ auth('customer')->user()->name }}</p>
-        <p>bill_email ={{ auth('customer')->user()->email }}</p>
-        <p>bill_mobile =60{{ auth('customer')->user()->phone_number }}</p>
-        <p>bill_desc =Topup</p>
-        <p>currency=MYR</p>
-        <p>vcode = {{ $signature }}</p>
-        <p>merchantid = {{ $merchantId }}</p>
+        <p class="mb-4">Redirecting you to the payment gateway…</p>
 
-        <?php echo md5('1.00'.'paynwash02'.'ORD-20260109085122-1'.'d13a34f7e22dadd1f50eee901f471707') ?>
     
         <form method="POST" action="https://pay.fiuu.com/RMS/pay/{{ $merchantId }}/" id="fiuuTopupForm">
-            @csrf
             <input type="hidden" name="amount" value="{{ number_format($amount, 2, '.', '') }}">
             <input type="hidden" name="orderid" value="{{ $orderId }}">
             <input type="hidden" name="bill_name" value="{{ auth('customer')->user()->name }}">

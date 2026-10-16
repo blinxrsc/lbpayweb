@@ -11,7 +11,12 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Models\PaymentGatewayTransaction;
 use App\Services\EwalletService;
-use App\Services\DeviceActivationService;
+use App\Services\FiuuSignature;
+use App\Services\MachineStartService;
+use App\Services\DevicePaymentSettlement;
+use App\Support\OrderId;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use App\Models\PaymentGatewaySetting;
 use App\Models\DeviceOutlet;
 use App\Models\DeviceTransaction;
@@ -58,48 +63,22 @@ class PaymentController extends Controller
     }
 
     /**
-     * Single place that sends the ESP32 its coin-equivalent pulse. This
-     * credits the machine exactly like inserting a physical coin would —
-     * it does NOT start the wash/dry cycle by itself. The machine is
-     * pulse-controlled, not API-controlled: the customer still has to
-     * press the machine's own Start button after the credit lands.
-     * Called once a transaction is confirmed paid — from the gateway
-     * callback (server-to-server, the reliable source of truth) and from
-     * the e-wallet path (which pays instantly, no external callback).
-     * Pulses are computed here from the device's own pulse_price, same as
-     * the technician app and admin dashboard — never trusted from
-     * anywhere else.
+     * Signed links to the post-payment "start machine" pages.
+     *
+     * These replace the old Auth::guard('customer')->loginUsingId() on the
+     * return URL. The signature proves the link came from us (after a
+     * verified payment or a wallet charge), so the page can show the
+     * order without logging anyone in. Relative signatures are used so the
+     * link stays valid behind Nginx Proxy Manager regardless of http/https.
      */
-    private function dispatchMachineStart(DeviceTransaction $transaction): void
+    public static function signedStartUrl(DeviceTransaction $transaction, bool $guest = false): string
     {
-        $deviceOutlet = $transaction->deviceOutlet;
-        $device = $deviceOutlet?->device;
-
-        if (!$device || (float) $device->pulse_price <= 0) {
-            Log::error('Cannot start machine: no pulse_price configured', ['transaction_id' => $transaction->id]);
-            return;
-        }
-
-        $pulses = (int) ceil($transaction->amount / $device->pulse_price);
-        $mode = $transaction->meta['mode'] ?? null;
-
-        // Generated here (not left to SendMqttCommand's internal default)
-        // so we have it on hand to poll for the firmware's ack afterward.
-        // SendMqttCommand's REMOTE_START branch merges $payload over its
-        // own auto-generated op_id, so passing one here overrides it.
-        $opId = (string) Str::uuid();
-
-        SendMqttCommand::dispatch($device->serial_number, 'REMOTE_START', [
-            'op_id'  => $opId,
-            'type'   => $mode ?? 'device',
-            'price'  => (float) $transaction->amount,
-            'pulses' => $pulses,
-        ], userId: null, customerId: $transaction->customer_id);
-
-        $transaction->update([
-            'status' => DeviceTransaction::STATUS_ACTIVATED,
-            'meta' => array_merge($transaction->meta ?? [], ['op_id' => $opId]),
-        ]);
+        return URL::temporarySignedRoute(
+            $guest ? 'guest.devices.start' : 'customer.devices.start',
+            now()->addHours(2),
+            ['transaction' => $transaction->id],
+            absolute: false
+        );
     }
 
     /**
@@ -213,7 +192,7 @@ class PaymentController extends Controller
         $amount = $this->resolveModeAndPrice($deviceOutlet, $r->mode);
 
         $customer = auth('customer')->user(); //$customerId = auth('customer')->id();
-        $orderId = 'ORD-M-' . now()->format('YmdHis') . '-' . $customer->id;
+        $orderId = OrderId::make(OrderId::DEVICE_GATEWAY);
         $amountFormatted = number_format($amount, 2, '.', '');
         // Fetch active gateway settings
         try {
@@ -223,7 +202,7 @@ class PaymentController extends Controller
             return redirect()->back()->with('error', 'Active payment gateway not found.');
         }
         // Build signature vcode=amount+merchantid+orderid+verify key
-        $signature = md5($amountFormatted . $gw->merchant_id . $orderId . $gw->private_key);
+        $signature = FiuuSignature::vcode($amountFormatted, $gw, $orderId);
         // Save transaction record
         $txn = DeviceTransaction::create([
             'customer_id'  => $customer->id,
@@ -257,7 +236,7 @@ class PaymentController extends Controller
         ]);       
     }
 
-    public function payWithEwallet(Request $request)
+    public function payWithEwallet(Request $request, EwalletService $wallet, MachineStartService $starter)
     {
         $request->validate([
             'device_outlet_id' => 'required|exists:device_has_outlet,id',
@@ -265,6 +244,10 @@ class PaymentController extends Controller
         ]);
 
         $customer = Auth::guard('customer')->user();
+        if (!$customer) {
+            // The guest QR page also posts here; a wallet needs an account.
+            return redirect()->route('customer.login')->with('error', 'Please log in to pay with your e-wallet.');
+        }
 
         $deviceOutlet = DeviceOutlet::where('id', $request->device_outlet_id)->firstOrFail();
         if (!$deviceOutlet->is_online) {
@@ -273,151 +256,114 @@ class PaymentController extends Controller
 
         $amount = $this->resolveModeAndPrice($deviceOutlet, $request->mode);
 
-        if ($customer->ewalletAccount->credit_balance < $amount) {
+        // Everything below runs in ONE database transaction:
+        //   lock wallet -> check balance -> deduct -> ledger row ->
+        //   device_transactions row -> queue machine start (sent after commit).
+        $result = DB::transaction(function () use ($customer, $deviceOutlet, $amount, $request, $wallet, $starter) {
+            // Lock the wallet row first so two parallel taps queue up here.
+            // Then the double-tap guard: same customer, same machine,
+            // wallet-paid in the last 15 s -> treat as the same purchase.
+            \App\Models\EwalletAccount::where('user_id', $customer->id)->lockForUpdate()->first();
+
+            $recent = DeviceTransaction::where('customer_id', $customer->id)
+                ->where('device_outlet_id', $deviceOutlet->id)
+                ->where('provider', 'ewallet')
+                ->where('created_at', '>=', now()->subSeconds(15))
+                ->latest('id')
+                ->first();
+            if ($recent) {
+                return ['duplicate', $recent];
+            }
+
+            $transaction = $wallet->spendForDevice(
+                $customer->id, $deviceOutlet, $amount, $request->mode, OrderId::make(OrderId::DEVICE_WALLET)
+            );
+            if (!$transaction) {
+                return ['insufficient', null];
+            }
+
+            $starter->dispatchForTransaction($transaction);
+
+            return ['ok', $transaction];
+        });
+
+        [$outcome, $transaction] = $result;
+
+        if ($outcome === 'insufficient') {
             return back()->with('error', 'Insufficient wallet balance.');
         }
 
-        // Deduct balance
-        $customer->ewalletAccount->decrement('credit_balance', $amount);
-
-        // Log transaction. NOTE: this previously referenced a `Payment`
-        // model that doesn't exist anywhere in this app (guaranteed fatal
-        // error on every wallet payment) — every other payment path uses
-        // DeviceTransaction, so this now does too.
-        $orderId = 'ORD-W-' . now()->format('YmdHis') . '-' . $customer->id;
-        $transaction = DeviceTransaction::create([
-            'customer_id' => $customer->id,
-            'device_outlet_id' => $request->device_outlet_id,
-            'amount' => $amount,
-            'currency' => 'MYR',
-            'status' => DeviceTransaction::STATUS_PAID,
-            'provider' => 'ewallet',
-            'order_id' => $orderId,
-            'meta' => [
-                'type' => 'device',
-                'mode' => $request->mode,
-                'device_outlet_id' => $request->device_outlet_id,
-            ],
-        ]);
-
-        // Actually start the machine — this step was entirely missing
-        // before, so a wallet payment deducted balance but never signaled
-        // the ESP32 at all.
-        $this->dispatchMachineStart($transaction);
-
-        return redirect()->route('customer.devices.start', $transaction->id)
-            ->with('success', 'Payment successful via E-Wallet!');
+        return redirect(self::signedStartUrl($transaction))
+            ->with('success', $outcome === 'duplicate'
+                ? 'This payment was already made a moment ago — no extra charge.'
+                : 'Payment successful via E-Wallet!');
     }
 
-    public function callback(Request $r, DeviceActivationService $activationService)
+    /**
+     * Fiuu server-to-server callback for machine payments (guest + customer).
+     * Signature first, then hand off to the idempotent settlement.
+     */
+    public function callback(Request $r, DevicePaymentSettlement $settlement)
     {
-        // Log the raw payload
-        Log::channel('fiuu')->info('Fiuu CALLBACK received', $r->all());
-        //receive data from Fiuu
-        $tranID   = $r->input('tranID');
-        $orderId  = $r->input('orderid');
-        $status   = $r->input('status');
-        $domain   = $r->input('domain');
-        $amount   = $r->input('amount');
-        $currency = $r->input('currency');
-        $appcode  = $r->input('appcode');
-        $paydate  = $r->input('paydate');
-        $skey     = $r->input('skey');
-        $nbcb     = $r->input('nbcb');
-        $meta     = $r->input('meta', []);
+        Log::channel('fiuu')->info('Fiuu device CALLBACK received', $r->except(['skey']));
 
-        // 1. Verify return signature
         $gw = PaymentGatewaySetting::where('status', 'active')->firstOrFail();
-        $secKey = $gw->secret_key;
-        $key0 = md5($tranID.$orderId.$status.$domain.$amount.$currency);
-        $key1 = md5($paydate.$domain.$key0.$appcode.$secKey);
-        if ($skey !== $key1) {
-            $status = -1;
-            Log::channel('fiuu')->warning("Invalid signature for order {$orderId}", [
-                'expected' => $key1,
-                'received' => $skey,
-            ]);
-            return response("Invalid signature", 400);
+
+        if (!FiuuSignature::verify($r->all(), $gw)) {
+            Log::channel('fiuu')->warning('Invalid signature on device callback', ['order_id' => $r->input('orderid')]);
+            return response('Invalid signature', 400);
         }
 
-        // 2. Find transaction     
-        $transaction = DeviceTransaction::where('order_id', $orderId)->first();
+        [$result] = $settlement->settle($r->all(), 'callback');
+
+        if ($result === DevicePaymentSettlement::NOT_FOUND) {
+            return response('Transaction not found', 404);
+        }
+
+        // Always acknowledge, including duplicates, so Fiuu stops retrying.
+        return (int) $r->input('nbcb') === 1
+            ? response('CBTOKEN:MPSTATOK', 200)
+            : response('Callback processed', 200);
+    }
+
+    /**
+     * Browser return for logged-in customers (after the Fiuu page).
+     *
+     * SECURITY: this used to call Auth::guard('customer')->loginUsingId()
+     * for whoever presented an order id — before checking the signature.
+     * It no longer logs anyone in. If the signature is valid we also
+     * settle here (idempotently) in case the browser beats the callback;
+     * then we redirect to a signed result page.
+     */
+    public function return(Request $request, DevicePaymentSettlement $settlement)
+    {
+        return $this->handleBrowserReturn($request, $settlement, guest: false);
+    }
+
+    private function handleBrowserReturn(Request $request, DevicePaymentSettlement $settlement, bool $guest)
+    {
+        Log::channel('fiuu')->info('Fiuu device RETURN', $request->except(['skey']));
+
+        $orderId = (string) $request->input('orderid');
+        $gw = PaymentGatewaySetting::where('status', 'active')->first();
+
+        if ($gw && FiuuSignature::verify($request->all(), $gw)) {
+            $settlement->settle($request->all(), 'return');
+        } else {
+            Log::channel('fiuu')->warning('Return with invalid/missing signature (display only, nothing settled)', ['order_id' => $orderId]);
+        }
+
+        $transaction = $orderId !== '' ? DeviceTransaction::where('order_id', $orderId)->first() : null;
 
         if (!$transaction) {
-            Log::channel('fiuu')->error("Transaction not found", ['order_id' => $orderId]);
-            return response("Transaction not found", 404);
+            $msg = 'We could not find that payment. If you were charged, please contact the outlet with your bank reference.';
+            abort_if($guest, 404, $msg);
+            return redirect()->route('customer.dashboard')->with('error', $msg);
         }
 
-        $transaction->update([
-            'provider_txn_id'  => $tranID,
-            'response_payload' => $r->all(),
-        ]);
-
-        // 3. Update transaction status and start the machine
-        if ($status === '00') {
-            $transaction->update(['status' => 'paid']);
-            Log::channel('fiuu')->info("Transaction marked paid", ['id' => $transaction->id]);
-
-            // Tell the ESP32 to start. This was previously commented out
-            // entirely, so a successful gateway payment never actually
-            // started the machine.
-            $this->dispatchMachineStart($transaction);
-        } else  {
-            $transaction->update(['status' => 'failed']);
-            Log::channel('fiuu')->warning("Transaction failed", ['id' => $transaction->id]);
-        } 
-        // Respond to Fiuu
-        if ($nbcb == 1) {
-            return response("CBTOKEN:MPSTATOK", 200);
-        }
-        return response("Callback processed", 200);
-    }
-
-
-    public function return(Request $request)
-    {
-        // Show success/failure message to customer
-        Log::channel('fiuu')->info('Fiuu RETURN called', $request->all());
-
-        $tranID   = $request->input('tranID');
-        $orderId  = $request->input('orderid');
-        $status   = $request->input('status');
-        $domain   = $request->input('domain');
-        $amount   = $request->input('amount');
-        $currency = $request->input('currency');
-        $appcode  = $request->input('appcode');
-        $paydate  = $request->input('paydate');
-        $skey     = $request->input('skey');
-
-        $gw = PaymentGatewaySetting::where('status', 'active')->firstOrFail();
-        $secKey = $gw->secret_key;
-
-        // Verify return signature
-        $key0 = md5($tranID.$orderId.$status.$domain.$amount.$currency);
-        $key1 = md5($paydate.$domain.$key0.$appcode.$secKey);
-        $validSignature = ($skey === $key1);
-
-        // Look up transaction in DB
-        $transaction = DeviceTransaction::where('order_id', $orderId)->first();
-
-        // Decide outcome
-        if ($transaction) {
-            // Auto-login the customer linked to this transaction
-            Auth::guard('customer')->loginUsingId($transaction->customer_id);
-
-            // Decide outcome
-            $isPaid = $transaction->status === 'paid';
-            $showSuccess = $validSignature && ($status === "00" || $isPaid);
-
-            if ($showSuccess) {
-                Log::channel('fiuu')->info('Fiuu RETURN called', ['id' => $transaction->id]);
-                return redirect()->route('customer.devices.start', $transaction->id)
-                    ->with('success', "Payment completed! Order {$orderId}, Amount RM {$amount}");
-            }
-        }
-        Log::channel('fiuu')->warning("Payment failed", ['id' => $transaction->id]);
-        return redirect()->route('customer.devices.start', $transaction->id)
-            ->with('error', "Payment failed or session expired for Order {$orderId}, Amount RM {$amount}");
+        // The result page shows the REAL stored status (polled), never the
+        // unverified query-string status, so a forged return can't fake success.
+        return redirect(self::signedStartUrl($transaction, $guest));
     }
 
     public function initiateQRPayment(Request $r) 
@@ -450,7 +396,7 @@ class PaymentController extends Controller
         $billEmail = $customer->email         ?? $r->guest_email;
         $billPhone = $customer->phone_number  ?? $r->guest_phone;
 
-        $orderId = 'ORD-M-' . now()->format('YmdHis') . '-' . ($customer->id ?? 'guest');
+        $orderId = OrderId::make(OrderId::DEVICE_GATEWAY);
         $amountFormatted = number_format($amount, 2, '.', '');
         // Fetch active gateway settings
         try {
@@ -460,7 +406,7 @@ class PaymentController extends Controller
             return redirect()->back()->with('error', 'Active payment gateway not found.');
         }
         // Build signature vcode=amount+merchantid+orderid+verify key
-        $signature = md5($amountFormatted . $gw->merchant_id . $orderId . $gw->private_key);
+        $signature = FiuuSignature::vcode($amountFormatted, $gw, $orderId);
         // Save transaction record. customer_id is nullable specifically so
         // a genuine guest checkout (no account) can still be recorded —
         // this used to hard-code customer_id => 0, which doesn't exist as
@@ -504,50 +450,10 @@ class PaymentController extends Controller
         ]);       
     }
 
-    public function returnQRPayment(Request $request)
+    public function returnQRPayment(Request $request, DevicePaymentSettlement $settlement)
     {
-        // Show success/failure message to customer
-        Log::channel('fiuu')->info('Fiuu RETURN called', $request->all());
-
-        $tranID   = $request->input('tranID');
-        $orderId  = $request->input('orderid');
-        $status   = $request->input('status');
-        $domain   = $request->input('domain');
-        $amount   = $request->input('amount');
-        $currency = $request->input('currency');
-        $appcode  = $request->input('appcode');
-        $paydate  = $request->input('paydate');
-        $skey     = $request->input('skey');
-
-        //$gw = PaymentGatewaySetting::where('status', 'active')->firstOrFail();
-        //$secKey = $gw->secret_key;
-
-        // Verify return signature
-        //$key0 = md5($tranID.$orderId.$status.$domain.$amount.$currency);
-        //$key1 = md5($paydate.$domain.$key0.$appcode.$secKey);
-        //$validSignature = ($skey === $key1);
-
-        // Look up transaction in DB
-        $transaction = DeviceTransaction::where('order_id', $orderId)->first();
-
-        // Decide outcome
-        if ($transaction) {
-            // Auto-login the customer linked to this transaction
-            //Auth::guard('customer')->loginUsingId($transaction->customer_id);
-
-            // Decide outcome
-            $isPaid = $transaction->status === 'paid';
-            //$showSuccess = $validSignature && ($status === "00" || $isPaid);
-            $showSuccess = $status === "00" || $isPaid;
-
-            if ($showSuccess) {
-                Log::channel('fiuu')->info('Fiuu RETURN called', ['id' => $transaction->id]);
-                return redirect()->route('guest.devices.start', $transaction->id);
-                    //->with('success', "Payment completed! Order {$orderId}, Amount RM {$amount}");
-            }
-        }
-        Log::channel('fiuu')->warning("Payment failed", ['id' => $transaction->id]);
-        return redirect()->route('guest.devices.start', $transaction->id);
-            //->with('error', "Payment failed or session expired for Order {$orderId}, Amount RM {$amount}");
+        // Signature check restored (it was commented out) and the same
+        // idempotent settlement as the logged-in flow.
+        return $this->handleBrowserReturn($request, $settlement, guest: true);
     }
 }

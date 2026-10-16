@@ -43,18 +43,18 @@ class EwalletController extends Controller
     public function initiateTopup(Request $r) {
         $r->validate(['amount' => 'required|numeric|min:1']);
         $customer = auth('customer')->user(); //$customerId = auth('customer')->id();
-        $orderId = 'ORD-' . now()->format('YmdHis') . '-' . $customer->id;
+        $orderId = \App\Support\OrderId::make(\App\Support\OrderId::TOPUP);
         $amount = number_format($r->amount, 2, '.', '');
         // Fetch active gateway settings
         $gw = PaymentGatewaySetting::where('status', 'active')->firstOrFail();
         // Build signature vcode=amount+merchantid+orderid+verify key
         //$signature = md5($gw->merchant_id . $orderId . number_format($r->amount, 2, '.', '') . $gw->secret_key);
-        $signature = md5($amount . $gw->merchant_id . $orderId . $gw->private_key);
+        $signature = \App\Services\FiuuSignature::vcode($amount, $gw, $orderId);
         // Save transaction record
         $txn = PaymentGatewayTransaction::create([
             //'user_id'  => $customerId,
             'user_id'  => $customer->id,
-            'amount'   => $r->amount,
+            'amount'   => $amount, // the exact 2-dp amount sent to Fiuu
             'currency' => 'MYR',
             'status'   => PaymentGatewayTransaction::STATUS_INITIATED,
             'provider' => PaymentGatewayTransaction::PROVIDER_FIUU,
