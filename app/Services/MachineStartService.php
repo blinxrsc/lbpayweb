@@ -35,8 +35,24 @@ class MachineStartService
             return false;
         }
 
-        $pulses = (int) ceil(round((float) $transaction->amount / (float) $device->pulse_price, 6));
+        $pulses = $device->pulsesFor((float) $transaction->amount);
         $meta   = $transaction->meta ?? [];
+
+        // Last line of defence: never send a start the controller will
+        // reject (it would ack "rejected: too_many_pulses" and the customer
+        // gets nothing). PaymentController already refuses such prices
+        // before charging; this catches admin/legacy paths.
+        if ($pulses > \App\Models\Device::maxPulsesPerStart()) {
+            Log::error('Cannot start machine: pulse count over controller limit', [
+                'transaction_id' => $transaction->id, 'pulses' => $pulses,
+                'max' => \App\Models\Device::maxPulsesPerStart(),
+            ]);
+            $transaction->update([
+                'status' => DeviceTransaction::STATUS_REVIEW,
+                'meta'   => array_merge($meta, ['pulses' => $pulses, 'review_reason' => 'pulses_over_limit']),
+            ]);
+            return false;
+        }
         $opId   = $meta['op_id'] ?? (string) Str::uuid();
 
         SendMqttCommand::dispatch($device->serial_number, 'REMOTE_START', [

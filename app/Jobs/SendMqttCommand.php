@@ -108,6 +108,9 @@ class SendMqttCommand implements ShouldQueue
                 // hardcoded default (idle HIGH / pulse LOW) regardless of
                 // what the actual relay/coin-input wiring needed.
                 'pulse_active_low'         => (bool) $device->pulse_active_low,
+                // Firmware v1.5.5+: per-start pulse limit, kept in sync
+                // with the backend's own check (config/lbpay.php).
+                'max_pulses'               => \App\Models\Device::maxPulsesPerStart(),
                 // max_vend_price is intentionally NOT included — it's a
                 // backend price cap, the firmware has no use for it.
             ]);

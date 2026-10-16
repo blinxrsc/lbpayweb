@@ -59,6 +59,16 @@ class PaymentController extends Controller
         $price = (float) $deviceOutlet->device->{$column};
         abort_if($price <= 0, 422, 'This machine has no price configured for that mode yet.');
 
+        // Refuse BEFORE taking money if the controller can't accept this
+        // many pulses in one start (e.g. firmware limit) — otherwise the
+        // customer pays and the machine gets nothing.
+        $device = $deviceOutlet->device;
+        abort_if(
+            !$device || (float) $device->pulse_price <= 0 || $device->pulsesFor($price) > \App\Models\Device::maxPulsesPerStart(),
+            422,
+            'This machine is not configured correctly for that price. Please choose another machine or contact the outlet.'
+        );
+
         return $price;
     }
 

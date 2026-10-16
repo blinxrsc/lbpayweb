@@ -99,7 +99,8 @@ new class extends Component {
             $this->dispatch('notify', message: "This device has no pulse_price configured.", type: 'error');
             return;
         }
-        $pulses = (int) ceil($price / $device->pulse_price);
+        $priceCents = (int) round($price * 100);
+        $pulses = (int) ceil($priceCents / $device->pulse_price);
 
         // Lock duration now scales with how long the pulse sequence actually
         // takes (pulses * (width + delay)) plus a flat safety margin, instead

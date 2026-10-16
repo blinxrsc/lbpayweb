@@ -158,7 +158,10 @@ class DeviceTransactionAdminController extends Controller
             return back()->with('error', 'This device has no pulse_price configured — cannot compute pulses.');
         }
 
-        $pulses = (int) ceil($transaction->amount / $device->pulse_price);
+        $pulses = $device->pulsesFor((float) $transaction->amount);
+        if ($pulses > \App\Models\Device::maxPulsesPerStart()) {
+            return back()->with('error', "This needs {$pulses} pulses; the controller accepts at most " . \App\Models\Device::maxPulsesPerStart() . ' per start.');
+        }
 
         SendMqttCommand::dispatch($deviceOutlet->device_serial_number, 'REMOTE_START', [
             'op_id'  => (string) Str::uuid(),

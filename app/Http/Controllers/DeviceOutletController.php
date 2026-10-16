@@ -354,15 +354,19 @@ class DeviceOutletController extends Controller
         // A pulse must always be cheaper than the cheapest full cycle — otherwise
         // every purchase rounds down to exactly 1 pulse (see bug report: RM2-5 all
         // produced "1 pulses" because pulse_price was left at a value >= RM5).
-        if (array_key_exists('pulse_price', $validated)) {
-            $cyclePrices = array_filter([
-                $validated['washer_cold_price'] ?? $device->washer_cold_price,
-                $validated['washer_warm_price'] ?? $device->washer_warm_price,
-                $validated['washer_hot_price']  ?? $device->washer_hot_price,
-                $validated['dryer_low_price']   ?? $device->dryer_low_price,
-                $validated['dryer_med_price']   ?? $device->dryer_med_price,
-                $validated['dryer_hi_price']    ?? $device->dryer_hi_price,
-            ], fn ($p) => $p > 0);
+        // Every configured price must fit in one REMOTE_START, otherwise the
+        // controller rejects it ("too_many_pulses") after the customer paid.
+        $problem = Device::pulseLimitProblem([
+            'Washer cold'    => $validated['washer_cold_price'],
+            'Washer warm'    => $validated['washer_warm_price'],
+            'Washer hot'     => $validated['washer_hot_price'],
+            'Dryer low'      => $validated['dryer_low_price'],
+            'Dryer medium'   => $validated['dryer_med_price'],
+            'Dryer high'     => $validated['dryer_hi_price'],
+            'Max vend price' => $validated['max_vend_price'] ?? 0,
+        ], (float) $validated['pulse_price']);
+        if ($problem) {
+            return back()->withInput()->withErrors(['pulse_price' => $problem]);
         }
 
         $device->update($validated);

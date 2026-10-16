@@ -78,7 +78,10 @@ class TransactionRefundController extends Controller
                 return back()->withInput()->with('error', 'The selected machine has no pulse_price configured — pick another one.');
             }
 
-            $pulses = (int) ceil($transaction->amount / $device->pulse_price);
+            $pulses = $device->pulsesFor((float) $transaction->amount);
+            if ($pulses > \App\Models\Device::maxPulsesPerStart()) {
+                return back()->withInput()->with('error', "This needs {$pulses} pulses; the controller accepts at most " . \App\Models\Device::maxPulsesPerStart() . ' per start. Pick another refund method.');
+            }
 
             SendMqttCommand::dispatch($targetOutlet->device_serial_number, 'REMOTE_START', [
                 'op_id'  => (string) Str::uuid(),

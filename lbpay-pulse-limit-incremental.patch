@@ -1,0 +1,635 @@
+diff --git a/app/Http/Controllers/Admin/DeviceTransactionAdminController.php b/app/Http/Controllers/Admin/DeviceTransactionAdminController.php
+index 5e92c9f..dc023f8 100644
+--- a/app/Http/Controllers/Admin/DeviceTransactionAdminController.php
++++ b/app/Http/Controllers/Admin/DeviceTransactionAdminController.php
+@@ -158,7 +158,10 @@ class DeviceTransactionAdminController extends Controller
+             return back()->with('error', 'This device has no pulse_price configured — cannot compute pulses.');
+         }
+ 
+-        $pulses = (int) ceil($transaction->amount / $device->pulse_price);
++        $pulses = $device->pulsesFor((float) $transaction->amount);
++        if ($pulses > \App\Models\Device::maxPulsesPerStart()) {
++            return back()->with('error', "This needs {$pulses} pulses; the controller accepts at most " . \App\Models\Device::maxPulsesPerStart() . ' per start.');
++        }
+ 
+         SendMqttCommand::dispatch($deviceOutlet->device_serial_number, 'REMOTE_START', [
+             'op_id'  => (string) Str::uuid(),
+diff --git a/app/Http/Controllers/Admin/TransactionRefundController.php b/app/Http/Controllers/Admin/TransactionRefundController.php
+index f10116b..e29b80c 100644
+--- a/app/Http/Controllers/Admin/TransactionRefundController.php
++++ b/app/Http/Controllers/Admin/TransactionRefundController.php
+@@ -78,7 +78,10 @@ class TransactionRefundController extends Controller
+                 return back()->withInput()->with('error', 'The selected machine has no pulse_price configured — pick another one.');
+             }
+ 
+-            $pulses = (int) ceil($transaction->amount / $device->pulse_price);
++            $pulses = $device->pulsesFor((float) $transaction->amount);
++            if ($pulses > \App\Models\Device::maxPulsesPerStart()) {
++                return back()->withInput()->with('error', "This needs {$pulses} pulses; the controller accepts at most " . \App\Models\Device::maxPulsesPerStart() . ' per start. Pick another refund method.');
++            }
+ 
+             SendMqttCommand::dispatch($targetOutlet->device_serial_number, 'REMOTE_START', [
+                 'op_id'  => (string) Str::uuid(),
+diff --git a/app/Http/Controllers/Api/TechnicianDeviceController.php b/app/Http/Controllers/Api/TechnicianDeviceController.php
+index 9713e52..b98c43c 100644
+--- a/app/Http/Controllers/Api/TechnicianDeviceController.php
++++ b/app/Http/Controllers/Api/TechnicianDeviceController.php
+@@ -93,15 +93,9 @@ class TechnicianDeviceController extends Controller
+             }
+         }
+ 
+-        if (array_key_exists('pulse_price', $validated)) {
+-            $cyclePrices = array_filter([
+-                $validated['washer_cold_price'] ?? $device->washer_cold_price,
+-                $validated['washer_warm_price'] ?? $device->washer_warm_price,
+-                $validated['washer_hot_price']  ?? $device->washer_hot_price,
+-                $validated['dryer_low_price']   ?? $device->dryer_low_price,
+-                $validated['dryer_med_price']   ?? $device->dryer_med_price,
+-                $validated['dryer_hi_price']    ?? $device->dryer_hi_price,
+-            ], fn ($p) => $p > 0);
++        // Every configured price must fit in one REMOTE_START.
++        if ($problem = Device::pulseLimitProblem($this->pricesForCheck($validated, $device), (float) ($validated['pulse_price'] ?? $device->pulse_price))) {
++            throw \Illuminate\Validation\ValidationException::withMessages(['pulse_price' => [$problem]]);
+         }
+ 
+         foreach ($validated as $field => $newValue) {
+@@ -180,7 +174,13 @@ class TechnicianDeviceController extends Controller
+             ], 422);
+         }
+ 
+-        $pulses = (int) ceil($validated['price'] / $device->pulse_price);
++        $pulses = $device->pulsesFor((float) $validated['price']);
++        $maxPulses = Device::maxPulsesPerStart();
++        if ($pulses > $maxPulses) {
++            return response()->json([
++                'message' => "RM" . number_format((float) $validated['price'], 2) . " needs {$pulses} pulses; the controller accepts at most {$maxPulses} per start.",
++            ], 422);
++        }
+         $opId = (string) Str::uuid();
+ 
+         SendMqttCommand::dispatch($serial, 'REMOTE_START', [
+@@ -212,7 +212,27 @@ class TechnicianDeviceController extends Controller
+         }
+ 
+         $ack = json_decode($json, true);
+-        return response()->json(['status' => $ack['status'] ?? 'unknown']);
++
++        // error / pulses / sent come from firmware v1.5.5+ acks, e.g.
++        // {"status":"rejected","error":"too_many_pulses:max=100","pulses":200}
++        // {"status":"completed","pulses":200,"sent":200}
++        return response()->json(array_filter([
++            'status' => $ack['status'] ?? 'unknown',
++            'error'  => $ack['error'] ?? null,
++            'pulses' => $ack['pulses'] ?? null,
++            'sent'   => $ack['sent'] ?? null,
++        ], fn ($v) => $v !== null));
++    }
++
++    private function pricesForCheck(array $validated, Device $device): array
++    {
++        $out = [];
++        foreach (['washer_cold_price' => 'Washer cold', 'washer_warm_price' => 'Washer warm', 'washer_hot_price' => 'Washer hot',
++                  'dryer_low_price' => 'Dryer low', 'dryer_med_price' => 'Dryer medium', 'dryer_hi_price' => 'Dryer high',
++                  'max_vend_price' => 'Max vend price'] as $key => $label) {
++            $out[$label] = array_key_exists($key, $validated) ? $validated[$key] : $device->$key;
++        }
++        return $out;
+     }
+ 
+     private function parametersFor(Device $device): array
+diff --git a/app/Http/Controllers/DeviceOutletController.php b/app/Http/Controllers/DeviceOutletController.php
+index 29bf471..6a6c80b 100644
+--- a/app/Http/Controllers/DeviceOutletController.php
++++ b/app/Http/Controllers/DeviceOutletController.php
+@@ -354,15 +354,19 @@ class DeviceOutletController extends Controller
+         // A pulse must always be cheaper than the cheapest full cycle — otherwise
+         // every purchase rounds down to exactly 1 pulse (see bug report: RM2-5 all
+         // produced "1 pulses" because pulse_price was left at a value >= RM5).
+-        if (array_key_exists('pulse_price', $validated)) {
+-            $cyclePrices = array_filter([
+-                $validated['washer_cold_price'] ?? $device->washer_cold_price,
+-                $validated['washer_warm_price'] ?? $device->washer_warm_price,
+-                $validated['washer_hot_price']  ?? $device->washer_hot_price,
+-                $validated['dryer_low_price']   ?? $device->dryer_low_price,
+-                $validated['dryer_med_price']   ?? $device->dryer_med_price,
+-                $validated['dryer_hi_price']    ?? $device->dryer_hi_price,
+-            ], fn ($p) => $p > 0);
++        // Every configured price must fit in one REMOTE_START, otherwise the
++        // controller rejects it ("too_many_pulses") after the customer paid.
++        $problem = Device::pulseLimitProblem([
++            'Washer cold'    => $validated['washer_cold_price'],
++            'Washer warm'    => $validated['washer_warm_price'],
++            'Washer hot'     => $validated['washer_hot_price'],
++            'Dryer low'      => $validated['dryer_low_price'],
++            'Dryer medium'   => $validated['dryer_med_price'],
++            'Dryer high'     => $validated['dryer_hi_price'],
++            'Max vend price' => $validated['max_vend_price'] ?? 0,
++        ], (float) $validated['pulse_price']);
++        if ($problem) {
++            return back()->withInput()->withErrors(['pulse_price' => $problem]);
+         }
+ 
+         $device->update($validated);
+diff --git a/app/Http/Controllers/PaymentController.php b/app/Http/Controllers/PaymentController.php
+index aabbbd6..d7d4cb3 100644
+--- a/app/Http/Controllers/PaymentController.php
++++ b/app/Http/Controllers/PaymentController.php
+@@ -59,6 +59,16 @@ class PaymentController extends Controller
+         $price = (float) $deviceOutlet->device->{$column};
+         abort_if($price <= 0, 422, 'This machine has no price configured for that mode yet.');
+ 
++        // Refuse BEFORE taking money if the controller can't accept this
++        // many pulses in one start (e.g. firmware limit) — otherwise the
++        // customer pays and the machine gets nothing.
++        $device = $deviceOutlet->device;
++        abort_if(
++            !$device || (float) $device->pulse_price <= 0 || $device->pulsesFor($price) > \App\Models\Device::maxPulsesPerStart(),
++            422,
++            'This machine is not configured correctly for that price. Please choose another machine or contact the outlet.'
++        );
++
+         return $price;
+     }
+ 
+diff --git a/app/Jobs/SendMqttCommand.php b/app/Jobs/SendMqttCommand.php
+index d6d3c2c..80dc095 100644
+--- a/app/Jobs/SendMqttCommand.php
++++ b/app/Jobs/SendMqttCommand.php
+@@ -108,6 +108,9 @@ class SendMqttCommand implements ShouldQueue
+                 // hardcoded default (idle HIGH / pulse LOW) regardless of
+                 // what the actual relay/coin-input wiring needed.
+                 'pulse_active_low'         => (bool) $device->pulse_active_low,
++                // Firmware v1.5.5+: per-start pulse limit, kept in sync
++                // with the backend's own check (config/lbpay.php).
++                'max_pulses'               => \App\Models\Device::maxPulsesPerStart(),
+                 // max_vend_price is intentionally NOT included — it's a
+                 // backend price cap, the firmware has no use for it.
+             ]);
+diff --git a/app/Models/Device.php b/app/Models/Device.php
+index a5c1f9a..c16cd52 100644
+--- a/app/Models/Device.php
++++ b/app/Models/Device.php
+@@ -25,6 +25,54 @@ class Device extends Model
+         'last_payload',
+     ];
+ 
++    /**
++     * Pulses to send for a price — the ONE place this is calculated
++     * (customer payments, technician app, admin re-send, refunds).
++     * round(..., 6) stops float noise (2.0 / 0.01 = 200.00000000000003)
++     * from turning 200 into 201.
++     */
++    public function pulsesFor(float $price): int
++    {
++        $pulsePrice = (float) $this->pulse_price;
++        if ($pulsePrice <= 0) {
++            return 0;
++        }
++        return (int) ceil(round($price / $pulsePrice, 6));
++    }
++
++    /** Max pulses one REMOTE_START may carry (see config/lbpay.php). */
++    public static function maxPulsesPerStart(): int
++    {
++        return max(1, (int) config('lbpay.max_pulses_per_start', 1000));
++    }
++
++    /**
++     * Returns a human-readable problem if any configured price would need
++     * more pulses than the controller accepts, else null. Used when saving
++     * device parameters, so a misconfiguration is caught by the admin
++     * instead of by a paying customer.
++     */
++    public static function pulseLimitProblem(array $prices, float $pulsePrice): ?string
++    {
++        if ($pulsePrice <= 0) {
++            return null;
++        }
++        $max = self::maxPulsesPerStart();
++        foreach ($prices as $label => $price) {
++            if ((float) $price <= 0) {
++                continue;
++            }
++            $pulses = (int) ceil(round((float) $price / $pulsePrice, 6));
++            if ($pulses > $max) {
++                $maxPrice = number_format($max * $pulsePrice, 2);
++                return "{$label} RM" . number_format((float) $price, 2) . " needs {$pulses} pulses at RM"
++                    . rtrim(rtrim(number_format($pulsePrice, 4), '0'), '.') . "/pulse, but the controller accepts at most {$max} "
++                    . "pulses per start (max RM{$maxPrice}). Raise the pulse price or LBPAY_MAX_PULSES_PER_START.";
++            }
++        }
++        return null;
++    }
++
+     public function supplier()
+     {
+         return $this->belongsTo(Supplier::class);
+diff --git a/app/Services/MachineStartService.php b/app/Services/MachineStartService.php
+index 3802dff..da57115 100644
+--- a/app/Services/MachineStartService.php
++++ b/app/Services/MachineStartService.php
+@@ -35,8 +35,24 @@ class MachineStartService
+             return false;
+         }
+ 
+-        $pulses = (int) ceil(round((float) $transaction->amount / (float) $device->pulse_price, 6));
++        $pulses = $device->pulsesFor((float) $transaction->amount);
+         $meta   = $transaction->meta ?? [];
++
++        // Last line of defence: never send a start the controller will
++        // reject (it would ack "rejected: too_many_pulses" and the customer
++        // gets nothing). PaymentController already refuses such prices
++        // before charging; this catches admin/legacy paths.
++        if ($pulses > \App\Models\Device::maxPulsesPerStart()) {
++            Log::error('Cannot start machine: pulse count over controller limit', [
++                'transaction_id' => $transaction->id, 'pulses' => $pulses,
++                'max' => \App\Models\Device::maxPulsesPerStart(),
++            ]);
++            $transaction->update([
++                'status' => DeviceTransaction::STATUS_REVIEW,
++                'meta'   => array_merge($meta, ['pulses' => $pulses, 'review_reason' => 'pulses_over_limit']),
++            ]);
++            return false;
++        }
+         $opId   = $meta['op_id'] ?? (string) Str::uuid();
+ 
+         SendMqttCommand::dispatch($device->serial_number, 'REMOTE_START', [
+diff --git b/config/lbpay.php b/config/lbpay.php
+new file mode 100644
+index 0000000..4bba19f
+--- /dev/null
++++ b/config/lbpay.php
+@@ -0,0 +1,17 @@
++<?php
++
++return [
++    /*
++    | Maximum pulses the ESP32 will accept in ONE REMOTE_START.
++    |
++    | Single source of truth: pushed to every device in the CONFIG message
++    | ("max_pulses", firmware v1.5.5+) and enforced here BEFORE a customer
++    | is charged. Firmware v1.5.4 and older have a fixed limit of 100 and
++    | cannot be changed remotely — set this to 100 until every device is
++    | on v1.5.5, otherwise prices above 100 pulses will be refused by them.
++    |
++    | Example: pulse_price RM0.01 (RM1 = 100 pulses) and a RM10 max cycle
++    | price needs at least 1000. Firmware hard ceiling is 2000.
++    */
++    'max_pulses_per_start' => (int) env('LBPAY_MAX_PULSES_PER_START', 1000),
++];
+diff --git a/tests/Feature/PaymentSecurityTest.php b/tests/Feature/PaymentSecurityTest.php
+index 9930e93..6849e3a 100644
+--- a/tests/Feature/PaymentSecurityTest.php
++++ b/tests/Feature/PaymentSecurityTest.php
+@@ -3,17 +3,12 @@
+ namespace Tests\Feature;
+ 
+ use App\Jobs\SendMqttCommand;
+-use App\Models\Customer;
+ use App\Models\DeviceTransaction;
+ use App\Models\EwalletAccount;
+ use App\Models\EwalletTransaction;
+-use App\Models\PaymentGatewaySetting;
+ use App\Models\PaymentGatewayTransaction;
+-use Illuminate\Foundation\Testing\RefreshDatabase;
+ use Illuminate\Support\Facades\DB;
+ use Illuminate\Support\Facades\Queue;
+-use Illuminate\Support\Facades\Redis;
+-use Tests\TestCase;
+ 
+ /**
+  * Covers fixes F1–F4 from the 2026-10-14 review:
+@@ -22,94 +17,8 @@ use Tests\TestCase;
+  *  F3 duplicate top-up callbacks never credit twice
+  *  F4 e-wallet spend is locked, ledgered, uses bonus, and blocks double taps
+  */
+-class PaymentSecurityTest extends TestCase
++class PaymentSecurityTest extends PaymentTestCase
+ {
+-    use RefreshDatabase;
+-
+-    private PaymentGatewaySetting $gw;
+-    private Customer $customer;
+-    private int $deviceOutletId;
+-    private string $serial = 'TESTSN0001';
+-
+-    protected function setUp(): void
+-    {
+-        parent::setUp();
+-        Queue::fake();
+-
+-        $this->gw = PaymentGatewaySetting::forceCreate([
+-            'merchant_id' => 'merchant_x', 'terminal_id' => 't1',
+-            'secret_key' => 'SECRET', 'private_key' => 'VERIFY', 'status' => 'active',
+-        ]);
+-
+-        $this->customer = $this->makeCustomer('alice');
+-
+-        $now = now();
+-        $managerId  = DB::table('managers')->insertGetId(['name' => 'M', 'created_at' => $now, 'updated_at' => $now]);
+-        $brandId    = DB::table('brands')->insertGetId(['name' => 'B', 'created_at' => $now, 'updated_at' => $now]);
+-        $statusId   = DB::table('type_statuses')->insertGetId(['name' => 'Active', 'created_at' => $now, 'updated_at' => $now]);
+-        $typeId     = DB::table('type_outlets')->insertGetId(['name' => 'Laundry', 'created_at' => $now, 'updated_at' => $now]);
+-        $supplierId = DB::table('suppliers')->insertGetId(['supplier_name' => 'S', 'created_at' => $now, 'updated_at' => $now]);
+-        $outletId   = DB::table('outlets')->insertGetId([
+-            'outlet_name' => 'Outlet 1', 'manager_id' => $managerId, 'brand_id' => $brandId,
+-            'status_id' => $statusId, 'type_id' => $typeId, 'created_at' => $now, 'updated_at' => $now,
+-        ]);
+-        DB::table('devices')->insert([
+-            'serial_number' => $this->serial, 'model' => 'LBP', 'supplier_id' => $supplierId,
+-            'washer_cold_price' => 5.00, 'washer_warm_price' => 6.00, 'washer_hot_price' => 7.00,
+-            'pulse_price' => 1.00, 'pulse_width' => 100, 'pulse_delay' => 100,
+-            'created_at' => $now, 'updated_at' => $now,
+-        ]);
+-        $this->deviceOutletId = DB::table('device_has_outlet')->insertGetId([
+-            'outlet_id' => $outletId, 'machine_num' => '1', 'machine_name' => 'W1', 'machine_type' => 'Washer',
+-            'device_serial_number' => $this->serial, 'status' => 'Online', 'created_at' => $now, 'updated_at' => $now,
+-        ]);
+-
+-        Redis::setex("machine:status:{$this->serial}", 600, 'online');
+-    }
+-
+-    protected function tearDown(): void
+-    {
+-        Redis::del("machine:status:{$this->serial}");
+-        parent::tearDown();
+-    }
+-
+-    // ───────────────────────── helpers ─────────────────────────
+-
+-    private function makeCustomer(string $name): Customer
+-    {
+-        return Customer::forceCreate([
+-            'name' => $name, 'email' => "$name@example.com", 'username' => $name,
+-            'password' => bcrypt('secret'), 'referral_code' => strtoupper($name),
+-        ]);
+-    }
+-
+-    /** A Fiuu result payload with a correct skey. */
+-    private function fiuu(string $orderId, string $amount, string $status = '00', string $tranId = 'T123'): array
+-    {
+-        $p = [
+-            'tranID' => $tranId, 'orderid' => $orderId, 'status' => $status, 'domain' => 'merchant_x',
+-            'amount' => $amount, 'currency' => 'MYR', 'appcode' => 'A1', 'paydate' => '2026-10-14 21:00:00',
+-            'nbcb' => '1',
+-        ];
+-        $key0 = md5($p['tranID'] . $p['orderid'] . $p['status'] . $p['domain'] . $p['amount'] . $p['currency']);
+-        $p['skey'] = md5($p['paydate'] . $p['domain'] . $key0 . $p['appcode'] . 'SECRET');
+-        return $p;
+-    }
+-
+-    private function deviceOrder(string $orderId = 'ORD-M-TEST1', ?int $customerId = null, string $amount = '5.00'): DeviceTransaction
+-    {
+-        return DeviceTransaction::create([
+-            'customer_id' => $customerId, 'device_outlet_id' => $this->deviceOutletId,
+-            'amount' => $amount, 'currency' => 'MYR', 'status' => 'initiated', 'provider' => 'fiuu',
+-            'order_id' => $orderId, 'meta' => ['type' => 'device', 'mode' => 'washer_cold'],
+-        ]);
+-    }
+-
+-    private function wallet(string $credit, string $bonus = '0'): EwalletAccount
+-    {
+-        return EwalletAccount::create(['user_id' => $this->customer->id, 'credit_balance' => $credit, 'bonus_balance' => $bonus]);
+-    }
+-
+     // ───────────────────────── F2: device callbacks ─────────────────────────
+ 
+     public function test_duplicate_device_callbacks_start_the_machine_only_once(): void
+diff --git b/tests/Feature/PaymentTestCase.php b/tests/Feature/PaymentTestCase.php
+new file mode 100644
+index 0000000..0be3c5b
+--- /dev/null
++++ b/tests/Feature/PaymentTestCase.php
+@@ -0,0 +1,116 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Jobs\SendMqttCommand;
++use App\Models\Customer;
++use App\Models\DeviceTransaction;
++use App\Models\EwalletAccount;
++use App\Models\EwalletTransaction;
++use App\Models\PaymentGatewaySetting;
++use App\Models\PaymentGatewayTransaction;
++use Illuminate\Foundation\Testing\RefreshDatabase;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Queue;
++use Illuminate\Support\Facades\Redis;
++use Tests\TestCase;
++
++/**
++ * Shared fixture for payment tests: one outlet, device TESTSN0001
++ * (washer RM5/6/7, pulse_price RM1), online in Redis, customer "alice",
++ * an active Fiuu gateway (secret SECRET, verify key VERIFY).
++ *
++ * (Originally the top of PaymentSecurityTest, which covers fixes F1–F4 from the 2026-10-14 review:
++ *  F1 no auto-login on return URLs, unguessable order ids, protected result pages
++ *  F2 duplicate Fiuu callbacks never start the machine twice
++ *  F3 duplicate top-up callbacks never credit twice
++ *  F4 e-wallet spend is locked, ledgered, uses bonus, and blocks double taps
++ */
++abstract class PaymentTestCase extends TestCase
++{
++    use RefreshDatabase;
++
++    protected PaymentGatewaySetting $gw;
++    protected Customer $customer;
++    protected int $deviceOutletId;
++    protected string $serial = 'TESTSN0001';
++
++    protected function setUp(): void
++    {
++        parent::setUp();
++        Queue::fake();
++
++        $this->gw = PaymentGatewaySetting::forceCreate([
++            'merchant_id' => 'merchant_x', 'terminal_id' => 't1',
++            'secret_key' => 'SECRET', 'private_key' => 'VERIFY', 'status' => 'active',
++        ]);
++
++        $this->customer = $this->makeCustomer('alice');
++
++        $now = now();
++        $managerId  = DB::table('managers')->insertGetId(['name' => 'M', 'created_at' => $now, 'updated_at' => $now]);
++        $brandId    = DB::table('brands')->insertGetId(['name' => 'B', 'created_at' => $now, 'updated_at' => $now]);
++        $statusId   = DB::table('type_statuses')->insertGetId(['name' => 'Active', 'created_at' => $now, 'updated_at' => $now]);
++        $typeId     = DB::table('type_outlets')->insertGetId(['name' => 'Laundry', 'created_at' => $now, 'updated_at' => $now]);
++        $supplierId = DB::table('suppliers')->insertGetId(['supplier_name' => 'S', 'created_at' => $now, 'updated_at' => $now]);
++        $outletId   = DB::table('outlets')->insertGetId([
++            'outlet_name' => 'Outlet 1', 'manager_id' => $managerId, 'brand_id' => $brandId,
++            'status_id' => $statusId, 'type_id' => $typeId, 'created_at' => $now, 'updated_at' => $now,
++        ]);
++        DB::table('devices')->insert([
++            'serial_number' => $this->serial, 'model' => 'LBP', 'supplier_id' => $supplierId,
++            'washer_cold_price' => 5.00, 'washer_warm_price' => 6.00, 'washer_hot_price' => 7.00,
++            'pulse_price' => 1.00, 'pulse_width' => 100, 'pulse_delay' => 100,
++            'created_at' => $now, 'updated_at' => $now,
++        ]);
++        $this->deviceOutletId = DB::table('device_has_outlet')->insertGetId([
++            'outlet_id' => $outletId, 'machine_num' => '1', 'machine_name' => 'W1', 'machine_type' => 'Washer',
++            'device_serial_number' => $this->serial, 'status' => 'Online', 'created_at' => $now, 'updated_at' => $now,
++        ]);
++
++        Redis::setex("machine:status:{$this->serial}", 600, 'online');
++    }
++
++    protected function tearDown(): void
++    {
++        Redis::del("machine:status:{$this->serial}");
++        parent::tearDown();
++    }
++
++    // ───────────────────────── helpers ─────────────────────────
++
++    protected function makeCustomer(string $name): Customer
++    {
++        return Customer::forceCreate([
++            'name' => $name, 'email' => "$name@example.com", 'username' => $name,
++            'password' => bcrypt('secret'), 'referral_code' => strtoupper($name),
++        ]);
++    }
++
++    /** A Fiuu result payload with a correct skey. */
++    protected function fiuu(string $orderId, string $amount, string $status = '00', string $tranId = 'T123'): array
++    {
++        $p = [
++            'tranID' => $tranId, 'orderid' => $orderId, 'status' => $status, 'domain' => 'merchant_x',
++            'amount' => $amount, 'currency' => 'MYR', 'appcode' => 'A1', 'paydate' => '2026-10-14 21:00:00',
++            'nbcb' => '1',
++        ];
++        $key0 = md5($p['tranID'] . $p['orderid'] . $p['status'] . $p['domain'] . $p['amount'] . $p['currency']);
++        $p['skey'] = md5($p['paydate'] . $p['domain'] . $key0 . $p['appcode'] . 'SECRET');
++        return $p;
++    }
++
++    protected function deviceOrder(string $orderId = 'ORD-M-TEST1', ?int $customerId = null, string $amount = '5.00'): DeviceTransaction
++    {
++        return DeviceTransaction::create([
++            'customer_id' => $customerId, 'device_outlet_id' => $this->deviceOutletId,
++            'amount' => $amount, 'currency' => 'MYR', 'status' => 'initiated', 'provider' => 'fiuu',
++            'order_id' => $orderId, 'meta' => ['type' => 'device', 'mode' => 'washer_cold'],
++        ]);
++    }
++
++    protected function wallet(string $credit, string $bonus = '0'): EwalletAccount
++    {
++        return EwalletAccount::create(['user_id' => $this->customer->id, 'credit_balance' => $credit, 'bonus_balance' => $bonus]);
++    }
++}
+diff --git b/tests/Feature/PulseLimitTest.php b/tests/Feature/PulseLimitTest.php
+new file mode 100644
+index 0000000..ea79e8b
+--- /dev/null
++++ b/tests/Feature/PulseLimitTest.php
+@@ -0,0 +1,110 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Jobs\SendMqttCommand;
++use App\Models\Device;
++use App\Models\DeviceTransaction;
++use App\Models\EwalletAccount;
++use App\Models\User;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Queue;
++use PhpMqtt\Client\Facades\MQTT;
++use Spatie\Permission\Models\Permission;
++
++/**
++ * Bug 2026-10-16: RM1.00 credited 100 pulses but RM2.00 credited nothing
++ * extra. pulse_price RM0.01 -> RM2.00 = 200 pulses, and firmware <= v1.5.4
++ * rejected anything over a hard-coded 100 ("too_many_pulses").
++ * The backend now owns the limit (config lbpay.max_pulses_per_start),
++ * pushes it to the device in CONFIG, and refuses BEFORE charging.
++ *
++ * Reuses the PaymentTestCase fixture (outlet, device TESTSN0001,
++ * washer_cold RM5, customer alice).
++ */
++class PulseLimitTest extends PaymentTestCase
++{
++    private function setPulsePrice(string $pulsePrice, array $extra = []): void
++    {
++        DB::table('devices')->where('serial_number', 'TESTSN0001')
++            ->update(array_merge(['pulse_price' => $pulsePrice], $extra));
++    }
++
++    private function technician(): User
++    {
++        foreach (['devices_outlet.manage', 'devices_outlet.edit', 'outlets.view-all'] as $p) {
++            Permission::findOrCreate($p, 'web');
++        }
++        $u = User::forceCreate(['name' => 'Tech', 'email' => 'tech@example.com', 'password' => bcrypt('x')]);
++        $u->givePermissionTo(['devices_outlet.manage', 'devices_outlet.edit', 'outlets.view-all']);
++        return $u;
++    }
++
++    public function test_rm2_at_one_sen_per_pulse_is_exactly_200_pulses(): void
++    {
++        $this->setPulsePrice('0.01');
++        $device = Device::where('serial_number', 'TESTSN0001')->first();
++
++        $this->assertSame(100, $device->pulsesFor(1.00));
++        $this->assertSame(200, $device->pulsesFor(2.00));
++        $this->assertSame(570, $device->pulsesFor(5.70)); // float noise would give 571
++    }
++
++    public function test_technician_start_rm2_sends_200_pulses(): void
++    {
++        $this->setPulsePrice('0.01');
++
++        $this->actingAs($this->technician(), 'sanctum')
++            ->postJson('/api/technician/devices/TESTSN0001/start', ['type' => 'custom', 'price' => 2.00])
++            ->assertOk()->assertJson(['pulses' => 200]);
++
++        Queue::assertPushed(SendMqttCommand::class, fn ($j) => $j->action === 'REMOTE_START' && $j->payload['pulses'] === 200);
++    }
++
++    public function test_technician_start_over_limit_is_refused_with_clear_message(): void
++    {
++        config(['lbpay.max_pulses_per_start' => 100]); // e.g. fleet still on v1.5.4
++        $this->setPulsePrice('0.01');
++
++        $this->actingAs($this->technician(), 'sanctum')
++            ->postJson('/api/technician/devices/TESTSN0001/start', ['type' => 'custom', 'price' => 2.00])
++            ->assertStatus(422)->assertJsonFragment(['message' => 'RM2.00 needs 200 pulses; the controller accepts at most 100 per start.']);
++
++        Queue::assertNothingPushed();
++    }
++
++    public function test_customer_is_not_charged_when_price_exceeds_limit(): void
++    {
++        config(['lbpay.max_pulses_per_start' => 100]);
++        $this->setPulsePrice('0.01'); // washer_cold RM5 = 500 pulses > 100
++        EwalletAccount::create(['user_id' => \App\Models\Customer::first()->id, 'credit_balance' => '20.00', 'bonus_balance' => 0]);
++
++        $this->actingAs(\App\Models\Customer::first(), 'customer')
++            ->post('/customer/customer/payment/ewallet', ['device_outlet_id' => DB::table('device_has_outlet')->value('id'), 'mode' => 'washer_cold'])
++            ->assertStatus(422);
++
++        $this->assertEquals('20.00', EwalletAccount::first()->credit_balance);
++        $this->assertSame(0, DeviceTransaction::count());
++        Queue::assertNothingPushed();
++    }
++
++    public function test_saving_parameters_that_exceed_limit_is_rejected(): void
++    {
++        config(['lbpay.max_pulses_per_start' => 100]);
++
++        $this->actingAs($this->technician(), 'sanctum')
++            ->putJson('/api/technician/devices/TESTSN0001/parameters', ['pulse_price' => 0.01, 'washer_cold_price' => 2.00])
++            ->assertStatus(422)->assertJsonValidationErrors('pulse_price');
++    }
++
++    public function test_config_push_tells_the_device_its_limit(): void
++    {
++        config(['lbpay.max_pulses_per_start' => 1000]);
++        MQTT::shouldReceive('publish')->once()->withArgs(function ($topic, $message, $retain) {
++            $p = json_decode($message, true);
++            return $topic === 'machines/TESTSN0001/cmd' && $p['action'] === 'CONFIG' && $p['max_pulses'] === 1000 && $retain === true;
++        });
++
++        (new SendMqttCommand('TESTSN0001', 'CONFIG'))->handle();
++    }
++}

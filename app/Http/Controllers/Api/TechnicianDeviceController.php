@@ -93,15 +93,9 @@ class TechnicianDeviceController extends Controller
             }
         }
 
-        if (array_key_exists('pulse_price', $validated)) {
-            $cyclePrices = array_filter([
-                $validated['washer_cold_price'] ?? $device->washer_cold_price,
-                $validated['washer_warm_price'] ?? $device->washer_warm_price,
-                $validated['washer_hot_price']  ?? $device->washer_hot_price,
-                $validated['dryer_low_price']   ?? $device->dryer_low_price,
-                $validated['dryer_med_price']   ?? $device->dryer_med_price,
-                $validated['dryer_hi_price']    ?? $device->dryer_hi_price,
-            ], fn ($p) => $p > 0);
+        // Every configured price must fit in one REMOTE_START.
+        if ($problem = Device::pulseLimitProblem($this->pricesForCheck($validated, $device), (float) ($validated['pulse_price'] ?? $device->pulse_price))) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['pulse_price' => [$problem]]);
         }
 
         foreach ($validated as $field => $newValue) {
@@ -180,7 +174,22 @@ class TechnicianDeviceController extends Controller
             ], 422);
         }
 
-        $pulses = (int) ceil($validated['price'] / $device->pulse_price);
+        // price is in Ringgit, pulse_price is in CENTS per pulse — convert price
+        // to cents first so pulse_price can be a clean whole number (e.g. 1 = 1
+        // cent/pulse) instead of an easy-to-mistype decimal like 0.01.
+        $priceCents = (int) round($validated['price'] * 100);
+        $pulses = (int) ceil($priceCents / $device->pulse_price);
+
+        //change by ariff
+        //$pulses = (int) ceil($priceCents / $device->pulse_price); 
+        //$pulses = $device->pulsesFor((float) $validated['price']);
+        //$maxPulses = Device::maxPulsesPerStart();
+        //if ($pulses > $maxPulses) {
+          //  return response()->json([
+            //    'message' => "RM" . number_format((float) $validated['price'], 2) . " needs {$pulses} pulses; the controller accepts at most {$maxPulses} per start.",
+            //], 422);
+        //}
+        //end
         $opId = (string) Str::uuid();
 
         SendMqttCommand::dispatch($serial, 'REMOTE_START', [
@@ -212,7 +221,27 @@ class TechnicianDeviceController extends Controller
         }
 
         $ack = json_decode($json, true);
-        return response()->json(['status' => $ack['status'] ?? 'unknown']);
+
+        // error / pulses / sent come from firmware v1.5.5+ acks, e.g.
+        // {"status":"rejected","error":"too_many_pulses:max=100","pulses":200}
+        // {"status":"completed","pulses":200,"sent":200}
+        return response()->json(array_filter([
+            'status' => $ack['status'] ?? 'unknown',
+            'error'  => $ack['error'] ?? null,
+            'pulses' => $ack['pulses'] ?? null,
+            'sent'   => $ack['sent'] ?? null,
+        ], fn ($v) => $v !== null));
+    }
+
+    private function pricesForCheck(array $validated, Device $device): array
+    {
+        $out = [];
+        foreach (['washer_cold_price' => 'Washer cold', 'washer_warm_price' => 'Washer warm', 'washer_hot_price' => 'Washer hot',
+                  'dryer_low_price' => 'Dryer low', 'dryer_med_price' => 'Dryer medium', 'dryer_hi_price' => 'Dryer high',
+                  'max_vend_price' => 'Max vend price'] as $key => $label) {
+            $out[$label] = array_key_exists($key, $validated) ? $validated[$key] : $device->$key;
+        }
+        return $out;
     }
 
     private function parametersFor(Device $device): array
